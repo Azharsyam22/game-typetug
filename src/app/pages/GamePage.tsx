@@ -1139,8 +1139,8 @@ export default function GamePage() {
                 <TombolRetro 
                    label={!isMultiplayer ? "MAIN LAGI" : (rematchReceived ? "TERIMA TANTANGAN" : (rematchRequested ? "MENUNGGU..." : "MAIN LAGI"))} 
                    onClick={handleRematchClick} 
-                   accent={rematchRequested ? "#A89878" : "#4A9060"} 
-                   disabled={rematchRequested}
+                   accent={rematchRequested ? "#A89878" : rematchReceived ? "#4A9060" : "#4A9060"} 
+                   disabled={rematchRequested && !rematchReceived}
                 />
               )}
               <TombolRetro label="KEMBALI KE LOBI" onClick={() => navigate("/lobby")} accent="#C08030" />
@@ -1253,8 +1253,8 @@ export default function GamePage() {
                 <TombolRetro 
                    label={!isMultiplayer ? "MAIN LAGI" : (rematchReceived ? "TERIMA TANTANGAN" : (rematchRequested ? "MENUNGGU..." : "MAIN LAGI"))} 
                    onClick={handleRematchClick} 
-                   accent={rematchRequested ? "#A89878" : "#4A9060"} 
-                   disabled={rematchRequested}
+                   accent={rematchRequested ? "#A89878" : rematchReceived ? "#4A9060" : "#4A9060"} 
+                   disabled={rematchRequested && !rematchReceived}
                 />
               )}
               <TombolRetro label="KEMBALI KE LOBI" onClick={() => navigate("/lobby")} accent="#C08030" />
