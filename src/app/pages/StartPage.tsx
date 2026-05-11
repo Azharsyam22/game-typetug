@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import { useNavigate } from "react-router";
 import bgStartImage from "../../assets/image/background-start page.png";
@@ -7,12 +7,19 @@ import { useAuth } from "../contexts/AuthContext";
 export default function StartPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [showPulse, setShowPulse] = useState(true);
 
   const handleLogout = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     logout();
     navigate("/login", { replace: true });
   };
+
+  useEffect(() => {
+    // Stop pulse animation after 3 seconds
+    const timer = setTimeout(() => setShowPulse(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Navigasi ke lobby ketika tombol apapun ditekan di keyboard
@@ -56,17 +63,93 @@ export default function StartPage() {
           boxShadow: "3px 3px 0 #C8B890",
           padding: "8px 10px",
           cursor: "default",
+          animation: `fadeIn 0.8s ease${showPulse ? ', subtlePulse 2s ease-in-out infinite' : ''}`,
+          transition: "box-shadow 0.3s ease",
         }}
         onClick={(event) => event.stopPropagation()}
+        onMouseEnter={(e) => {
+          if (!showPulse) {
+            e.currentTarget.style.boxShadow = "3px 3px 0 #C8B890, 0 0 20px rgba(192, 128, 48, 0.4)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!showPulse) {
+            e.currentTarget.style.boxShadow = "3px 3px 0 #C8B890";
+          }
+        }}
       >
-        {user?.avatarUrl && (
+        {user?.avatarUrl ? (
           <img
             src={user.avatarUrl}
             alt={user.username}
-            style={{ width: "28px", height: "28px", borderRadius: "50%" }}
+            onError={(e) => {
+              // Fallback jika gambar gagal dimuat
+              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username || 'User')}&background=C08030&color=fff&size=96`;
+            }}
+            style={{ 
+              width: "28px", 
+              height: "28px", 
+              borderRadius: "50%", 
+              objectFit: "cover",
+              transition: "transform 0.3s ease, box-shadow 0.3s ease",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
+              e.currentTarget.style.boxShadow = "0 4px 8px rgba(192, 128, 48, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
           />
+        ) : (
+          <div
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              background: "#C08030",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              fontSize: "12px",
+              fontWeight: "bold",
+              transition: "transform 0.3s ease, box-shadow 0.3s ease",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
+              e.currentTarget.style.boxShadow = "0 4px 8px rgba(192, 128, 48, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            {(user?.username || "U").charAt(0).toUpperCase()}
+          </div>
         )}
-        <span style={{ color: "#2A1A18", fontSize: "8px", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <span 
+          style={{ 
+            color: "#2A1A18", 
+            fontSize: "8px", 
+            maxWidth: "160px", 
+            overflow: "hidden", 
+            textOverflow: "ellipsis",
+            transition: "color 0.3s ease, transform 0.3s ease",
+            cursor: "default",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#C08030";
+            e.currentTarget.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "#2A1A18";
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+        >
           {user?.username || "PLAYER"}
         </span>
         <button
@@ -79,6 +162,25 @@ export default function StartPage() {
             fontFamily: "'Press Start 2P', monospace",
             fontSize: "7px",
             cursor: "pointer",
+            transition: "all 0.3s ease",
+            position: "relative",
+            overflow: "hidden",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#A03030";
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 4px 8px rgba(200, 64, 64, 0.4)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#C84040";
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = "translateY(0) scale(0.95)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px) scale(1)";
           }}
         >
           LOGOUT
@@ -92,6 +194,22 @@ export default function StartPage() {
         @keyframes float {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
+        }
+        @keyframes fadeIn {
+          0% {
+            opacity: 0;
+          }
+          100% {
+            opacity: 1;
+          }
+        }
+        @keyframes subtlePulse {
+          0%, 100% {
+            box-shadow: 3px 3px 0 #C8B890;
+          }
+          50% {
+            box-shadow: 3px 3px 0 #C8B890, 0 0 15px rgba(192, 128, 48, 0.3);
+          }
         }
       `}</style>
       

@@ -188,9 +188,12 @@ async function handleAuthRequest(req, res) {
 
       const passwordHash = await bcrypt.hash(password, 10);
       try {
+        // Generate default avatar untuk user baru
+        const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(normalizedUsername)}&background=C08030&color=fff&size=96`;
+        
         const result = db
-          .prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)")
-          .run(normalizedUsername, normalizedEmail, passwordHash);
+          .prepare("INSERT INTO users (username, email, password_hash, avatar_url) VALUES (?, ?, ?, ?)")
+          .run(normalizedUsername, normalizedEmail, passwordHash, defaultAvatar);
         const user = db.prepare("SELECT * FROM users WHERE id = ?").get(result.lastInsertRowid);
         sendJson(req, res, 201, { token: signToken(user.id), user: userResponse(user) });
       } catch (error) {
@@ -232,7 +235,8 @@ async function handleAuthRequest(req, res) {
         .get(googleId, email);
 
       if (user) {
-        db.prepare("UPDATE users SET google_id = COALESCE(google_id, ?), avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
+        // Update google_id dan avatar_url dari Google (selalu update avatar terbaru)
+        db.prepare("UPDATE users SET google_id = COALESCE(google_id, ?), avatar_url = ? WHERE id = ?")
           .run(googleId, profile.picture || null, user.id);
         user = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
       } else {

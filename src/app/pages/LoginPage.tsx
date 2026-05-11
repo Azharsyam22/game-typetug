@@ -43,7 +43,7 @@ const hasGoogleClientId = Boolean(
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, register, loginWithGoogle } = useAuth();
+  const { user, login, register, loginWithGoogle } = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<AuthMode>("masuk");
   const [username, setUsername] = useState("");
@@ -52,6 +52,13 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect ke /start jika user sudah login
+  useEffect(() => {
+    if (user) {
+      navigate("/start", { replace: true });
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (!hasGoogleClientId) return;
@@ -296,13 +303,40 @@ export default function LoginPage() {
           </div>
         )}
 
-        {hasGoogleClientId && (
-          <>
-            <div style={{ color: "#C8B890", fontSize: "8px", margin: "22px 0 14px" }}>── ATAU ──</div>
-            <div style={{ display: "flex", justifyContent: "center", minHeight: "44px" }}>
-              <div ref={googleButtonRef} />
-            </div>
-          </>
+        <div style={{ color: "#C8B890", fontSize: "8px", margin: "22px 0 14px" }}>── ATAU ──</div>
+        
+        {hasGoogleClientId ? (
+          <div style={{ display: "flex", justifyContent: "center", minHeight: "44px" }}>
+            <div ref={googleButtonRef} />
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled
+            style={{
+              width: "100%",
+              background: "#3A2824",
+              border: "2px solid #8C5A35",
+              color: "#8C5A35",
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: "9px",
+              padding: "14px",
+              cursor: "not-allowed",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              opacity: 0.6,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+              <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.18L12.05 13.56c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.96v2.332C2.44 15.983 5.485 18 9.003 18z" fill="#34A853"/>
+              <path d="M3.964 10.712c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.96H.957C.347 6.175 0 7.55 0 9.002c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+              <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.485 0 2.44 2.017.96 4.958L3.967 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
+            </svg>
+            MASUK DENGAN GOOGLE
+          </button>
         )}
       </div>
     </div>

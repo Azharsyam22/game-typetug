@@ -130,7 +130,7 @@ export default function LobbyPage() {
     >
       {/* ── BACK BUTTON ──────────────────────────────────────────────────────── */}
       <button
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/start")}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = "#A03030";
           e.currentTarget.style.transform = "translate(-1px,-1px)";

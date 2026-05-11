@@ -6,6 +6,7 @@ TypeTug adalah game typing multiplayer real-time dengan tema tug-of-war (tarik t
 
 - 🎯 **Mode Bot**: Bermain melawan AI dengan tingkat kesulitan yang dapat disesuaikan
 - 👥 **Mode Multiplayer**: Bermain real-time dengan pemain lain menggunakan kode room
+- 🔐 **Autentikasi**: Login dengan email/password atau Google OAuth
 - 🏆 **Sistem 3 Round**: Round 1, Round 2, dan Sudden Death (jika draw)
 - 📊 **Statistik Real-time**: KPM (Kata Per Menit) dan Akurasi
 - 🎨 **Retro Pixel Art Style**: Desain visual bergaya arcade klasik
@@ -35,17 +36,22 @@ npm install
 cp .env.example .env
 ```
 
-4. Jalankan server WebSocket (terminal 1):
+4. **(Opsional)** Setup Google OAuth:
+   - Lihat panduan lengkap di [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md)
+   - Dapatkan Client ID dari [Google Cloud Console](https://console.cloud.google.com/)
+   - Tambahkan ke `.env`: `VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com`
+
+5. Jalankan server WebSocket (terminal 1):
 ```bash
 npm start
 ```
 
-5. Jalankan development server (terminal 2):
+6. Jalankan development server (terminal 2):
 ```bash
 npm run dev
 ```
 
-6. Buka browser di `http://localhost:5173`
+7. Buka browser di `http://localhost:5173`
 
 ## 🏗️ Build untuk Production
 
