@@ -110,25 +110,13 @@ export default function GamePage() {
 
   const [kata, setKata] = useState<string[]>(() => acakKata());
 
-  const [fase, setFase] = useState<"menunggu" | "hitung" | "bermain" | "selesai" | "jeda">("menunggu");
+  const [fase, setFase] = useState<"menunggu" | "hitung" | "bermain" | "selesai">("menunggu");
   const [hitung, setHitung] = useState(3);
   const [waktuSisa, setWaktuSisa] = useState(DURASI);
-  const [showRoundPopup, setShowRoundPopup] = useState(false);
+  const [showCountdownPopup, setShowCountdownPopup] = useState(false);
+  const [countdownNumber, setCountdownNumber] = useState(3);
   const [showFightPopup, setShowFightPopup] = useState(false);
-  const [currentRound, setCurrentRound] = useState(1);
-  const [roundWins, setRoundWins] = useState<(string | null)[]>([null, null, null]); // Simpan nama pemenang, bukan "merah"/"biru"
   const [showScorePopup, setShowScorePopup] = useState(false);
-  const [showRoundScorePopup, setShowRoundScorePopup] = useState(false);
-  const [currentRoundScore, setCurrentRoundScore] = useState(1);
-  
-  // Stats per round untuk ditampilkan di score popup
-  const [roundStats, setRoundStats] = useState<{
-    round: number;
-    playerWpm: number;
-    playerAccuracy: number;
-    opponentWpm: number;
-    opponentAccuracy: number;
-  }[]>([]);
 
   // Player typing state
   const [indekKata, setIndekKata] = useState(0);
@@ -444,120 +432,14 @@ export default function GamePage() {
       setSedangKetik(false);
       if (timerRiwayat.current) clearInterval(timerRiwayat.current);
       
-      // Tentukan pemenang round ini
+      // Tentukan pemenang
       const winner = posiTali > 50 ? "merah" : posiTali < 50 ? "biru" : null;
+      setPemenang(winner);
       
-      // Update round wins
-      const newRoundWins = [...roundWins];
-      newRoundWins[currentRound - 1] = winner;
-      setRoundWins(newRoundWins);
+      // Tampilkan score popup
+      setShowScorePopup(true);
       
-      // Simpan stats round ini
-      const newStats = {
-        round: currentRound,
-        playerWpm: wpmPlayer,
-        playerAccuracy: akuPlayer,
-        opponentWpm: wpmBot,
-        opponentAccuracy: akuBot,
-      };
-      setRoundStats(prevStats => [...prevStats, newStats]);
-      
-      // Broadcast hasil round ke server (untuk multiplayer)
-      if (isMultiplayer) {
-        // Beritahu server bahwa pemain ini sudah selesai dengan stats
-        socket.emit("playerFinished", { 
-          roomCode: kodeRoom, 
-          round: currentRound, 
-          playerId: socket.id,
-          playerName: namaPlayer, // Kirim nama pemain
-          stats: newStats
-        });
-        
-        // JANGAN kirim roundEnded - biarkan server yang tentukan pemenang
-        
-        // HANYA HOST yang trigger pop-up dan transisi untuk menghindari duplikasi
-        if (state?.isHost) {
-          // Broadcast untuk menampilkan round score popup ke semua pemain
-          socket.emit("showRoundScorePopup", { roomCode: kodeRoom, round: currentRound });
-          
-          // Cek apakah ini round 1, 2, atau sudden death
-          if (currentRound === 1) {
-            // Round 1 selesai - auto lanjut ke Round 2 setelah 3 detik
-            setTimeout(() => {
-              socket.emit("transitionToRound", { roomCode: kodeRoom, nextRound: 2 });
-            }, 3000);
-          } else if (currentRound === 2) {
-            // Round 2 selesai - cek apakah draw atau ada pemenang
-            // Hitung berapa kali setiap pemain menang
-            const playerWins = newRoundWins.slice(0, 2).filter(w => w === namaPlayer).length;
-            const opponentWins = newRoundWins.slice(0, 2).filter(w => w === namaMusuh).length;
-            
-            if (playerWins === opponentWins) {
-              // DRAW - lanjut ke Sudden Death setelah 3 detik
-              setTimeout(() => {
-                socket.emit("transitionToRound", { roomCode: kodeRoom, nextRound: 3 });
-              }, 3000);
-            } else {
-              // Ada pemenang - tampilkan tombol setelah 3 detik
-              setTimeout(() => {
-                socket.emit("showFinalResults", { roomCode: kodeRoom });
-              }, 3000);
-            }
-          } else {
-            // Sudden Death selesai - tampilkan tombol setelah 3 detik
-            setTimeout(() => {
-              socket.emit("showFinalResults", { roomCode: kodeRoom });
-            }, 3000);
-          }
-        }
-      } else {
-        // Mode bot - langsung tampilkan popup dan handle transisi
-        setCurrentRoundScore(currentRound);
-        setShowRoundScorePopup(true);
-        
-        // Simpan winner sebagai nama pemain, bukan "merah"/"biru"
-        const winnerName = winner === "merah" ? namaPlayer : winner === "biru" ? "BOT" : null;
-        const newRoundWinsWithNames = [...roundWins];
-        newRoundWinsWithNames[currentRound - 1] = winnerName;
-        setRoundWins(newRoundWinsWithNames);
-        
-        // Cek apakah ini round 1, 2, atau sudden death
-        if (currentRound === 1) {
-          // Round 1 selesai - auto lanjut ke Round 2 setelah 3 detik
-          setTimeout(() => {
-            setShowRoundScorePopup(false);
-            setCurrentRound(2);
-            setTimeout(() => mulaiPermainanRef.current(), 500);
-          }, 3000);
-        } else if (currentRound === 2) {
-          // Round 2 selesai - cek apakah draw atau ada pemenang
-          const playerWins = newRoundWinsWithNames.slice(0, 2).filter(w => w === namaPlayer).length;
-          const botWins = newRoundWinsWithNames.slice(0, 2).filter(w => w === "BOT").length;
-          
-          if (playerWins === botWins) {
-            // DRAW - lanjut ke Sudden Death setelah 3 detik
-            setTimeout(() => {
-              setShowRoundScorePopup(false);
-              setCurrentRound(3);
-              setTimeout(() => mulaiPermainanRef.current(), 500);
-            }, 3000);
-          } else {
-            // Ada pemenang - tampilkan tombol setelah 3 detik
-            setTimeout(() => {
-              setShowRoundScorePopup(false);
-              setShowScorePopup(true);
-            }, 3000);
-          }
-        } else {
-          // Sudden Death selesai - tampilkan tombol setelah 3 detik
-          setTimeout(() => {
-            setShowRoundScorePopup(false);
-            setShowScorePopup(true);
-          }, 3000);
-        }
-      }
-      
-      return "menunggu";
+      return "selesai";
     });
   };
 
@@ -567,27 +449,13 @@ export default function GamePage() {
       setSedangKetik(false);
       if (timerRiwayat.current) clearInterval(timerRiwayat.current);
       
-      // Tentukan pemenang round ini
+      // Tentukan pemenang
       const winner = posiTali > 50 ? "merah" : posiTali < 50 ? "biru" : null;
+      setPemenang(winner);
       
-      // Update round wins
-      const newRoundWins = [...roundWins];
-      newRoundWins[currentRound - 1] = winner;
-      setRoundWins(newRoundWins);
-      
-      // Cek apakah ini round 1 atau 2
-      if (currentRound === 1) {
-        // Masuk ke jeda 3 detik sebelum round 2
-        setTimeout(() => {
-          setCurrentRound(2);
-          mulaiPermainanRef.current();
-        }, 3000);
-        return "jeda";
-      } else {
-        // Round 2 selesai, tampilkan score popup
-        setShowScorePopup(true);
-        return "selesai";
-      }
+      // Tampilkan score popup
+      setShowScorePopup(true);
+      return "selesai";
     });
   };
 
@@ -613,23 +481,31 @@ export default function GamePage() {
   };
 
   const mulaiPermainan = () => {
-    bersihkanData(); // Reset posisi dan data SEBELUM pop-up dimulai
+    bersihkanData();
     setFase("hitung");
     
-    // Tampilkan "ROUND X" selama 1 detik
-    setShowRoundPopup(true);
+    // Countdown 3-2-1 dengan jeda 1 detik masing-masing
+    setShowCountdownPopup(true);
+    setCountdownNumber(3);
+    
     setTimeout(() => {
-      setShowRoundPopup(false);
-      
-      // Tampilkan "FIGHT!" selama 1 detik
-      setShowFightPopup(true);
+      setCountdownNumber(2);
       setTimeout(() => {
-        setShowFightPopup(false);
-        
-        // Mulai game
-        setFase("bermain");
-        waktuMulai.current = Date.now();
-        timerRiwayat.current = setInterval(() => {}, 5000);
+        setCountdownNumber(1);
+        setTimeout(() => {
+          setShowCountdownPopup(false);
+          
+          // Tampilkan "FIGHT!" selama 1 detik
+          setShowFightPopup(true);
+          setTimeout(() => {
+            setShowFightPopup(false);
+            
+            // Mulai game
+            setFase("bermain");
+            waktuMulai.current = Date.now();
+            timerRiwayat.current = setInterval(() => {}, 5000);
+          }, 1000);
+        }, 1000);
       }, 1000);
     }, 1000);
   };
@@ -641,22 +517,14 @@ export default function GamePage() {
     bersihkanData();
     setFase("menunggu");
     setLawanKeluar(false);
-    setCurrentRound(1);
-    setRoundWins([null, null, null]);
-    setRoundStats([]);
     setShowScorePopup(false);
-    setShowRoundScorePopup(false);
     if (timerRiwayat.current) clearInterval(timerRiwayat.current);
   };
 
   const handleRematchClick = () => {
     if (!isMultiplayer) {
       // Mode bot - reset semua dan langsung mulai
-      setCurrentRound(1);
-      setRoundWins([null, null, null]);
-      setRoundStats([]);
       setShowScorePopup(false);
-      setShowRoundScorePopup(false);
       bersihkanData();
       mulaiPermainanRef.current();
     } else {
