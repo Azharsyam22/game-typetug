@@ -206,27 +206,6 @@ export default function GamePage() {
         if (data.salah !== undefined) setSalahBot(data.salah);
       });
 
-      socket.on("rematchRequested", () => {
-        console.log("🔔 Received rematchRequested event from opponent");
-        setRematchReceived(true);
-      });
-
-      socket.on("rematchCancelled", () => {
-        // Lawan cancel tantangan, reset state
-        setRematchReceived(false);
-        setRematchRequested(false);
-      });
-
-      socket.on("rematchAccepted", () => {
-        setShowScorePopup(false);
-        resetPermainan();
-        
-        // Otomatis mulai game setelah rematch accepted
-        setTimeout(() => {
-          socket.emit("startGame", { roomCode: kodeRoom });
-        }, 500);
-      });
-
       socket.on("opponentLeft", () => {
         setLawanKeluar(true);
         setFase("selesai");
@@ -250,14 +229,50 @@ export default function GamePage() {
         socket.off("opponentProgress");
         socket.off("opponentLeft");
         socket.off("joinError");
-        socket.off("rematchRequested");
-        socket.off("rematchCancelled");
-        socket.off("rematchAccepted");
         socket.off("opponentEndedGame");
         socket.disconnect();
       };
     }
   }, [isMultiplayer, kodeRoom, namaPlayer, navigate, state?.isHost]);
+
+  // ── Rematch Event Listeners (Separate useEffect) ────────────────────────────
+  useEffect(() => {
+    if (!isMultiplayer) return;
+
+    console.log("🔧 Registering rematch event listeners");
+
+    const handleRematchRequested = () => {
+      console.log("🔔 Received rematchRequested event from opponent");
+      setRematchReceived(true);
+    };
+
+    const handleRematchCancelled = () => {
+      console.log("❌ Received rematchCancelled event from opponent");
+      setRematchReceived(false);
+      setRematchRequested(false);
+    };
+
+    const handleRematchAccepted = () => {
+      console.log("✅ Received rematchAccepted event");
+      setShowScorePopup(false);
+      resetPermainan();
+      
+      setTimeout(() => {
+        socket.emit("startGame", { roomCode: kodeRoom });
+      }, 500);
+    };
+
+    socket.on("rematchRequested", handleRematchRequested);
+    socket.on("rematchCancelled", handleRematchCancelled);
+    socket.on("rematchAccepted", handleRematchAccepted);
+
+    return () => {
+      console.log("🔧 Cleaning up rematch event listeners");
+      socket.off("rematchRequested", handleRematchRequested);
+      socket.off("rematchCancelled", handleRematchCancelled);
+      socket.off("rematchAccepted", handleRematchAccepted);
+    };
+  }, [isMultiplayer, kodeRoom]);
 
   // ── Emit Progress ───────────────────────────────────────────────────────────
   useEffect(() => {
