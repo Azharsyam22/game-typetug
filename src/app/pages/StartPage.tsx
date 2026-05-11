@@ -1,9 +1,18 @@
 import { useEffect } from "react";
+import type { MouseEvent } from "react";
 import { useNavigate } from "react-router";
 import bgStartImage from "../../assets/image/background-start page.png";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function StartPage() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleLogout = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   useEffect(() => {
     // Navigasi ke lobby ketika tombol apapun ditekan di keyboard
@@ -34,6 +43,47 @@ export default function StartPage() {
         overflow: "hidden",
       }}
     >
+      <div
+        style={{
+          position: "absolute",
+          top: "18px",
+          right: "18px",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          background: "#FDFAF4",
+          border: "2px solid #8C5A35",
+          boxShadow: "3px 3px 0 #C8B890",
+          padding: "8px 10px",
+          cursor: "default",
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {user?.avatarUrl && (
+          <img
+            src={user.avatarUrl}
+            alt={user.username}
+            style={{ width: "28px", height: "28px", borderRadius: "50%" }}
+          />
+        )}
+        <span style={{ color: "#2A1A18", fontSize: "8px", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {user?.username || "PLAYER"}
+        </span>
+        <button
+          onClick={handleLogout}
+          style={{
+            background: "#C84040",
+            border: "2px solid #8A1818",
+            color: "#FDFAF4",
+            padding: "7px 9px",
+            fontFamily: "'Press Start 2P', monospace",
+            fontSize: "7px",
+            cursor: "pointer",
+          }}
+        >
+          LOGOUT
+        </button>
+      </div>
       <style>{`
         @keyframes slowBlink {
           0%, 100% { opacity: 1; }

@@ -1,10 +1,46 @@
 import { Server } from "socket.io";
 import { createServer } from "http";
+import fs from "fs";
+import Database from "better-sqlite3";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+function loadEnvFile() {
+  if (!fs.existsSync(".env")) return;
+
+  const lines = fs.readFileSync(".env", "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+
+    const [key, ...valueParts] = trimmed.split("=");
+    if (!process.env[key]) {
+      process.env[key] = valueParts.join("=").trim();
+    }
+  }
+}
+
+loadEnvFile();
 
 const PORT = process.env.PORT || 3001;
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ["http://localhost:5173", "http://localhost:5174"];
+const JWT_SECRET = process.env.JWT_SECRET || "typetug-dev-secret-change-me-9f31b4a7d6";
+
+const db = new Database("typetug.db");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT,
+    google_id TEXT,
+    avatar_url TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )
+`);
+console.log("Database siap");
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -18,6 +54,233 @@ const io = new Server(httpServer, {
 });
 
 const rooms = {};
+
+function signToken(userId) {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+}
+
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+function getCorsOrigin(req) {
+  const origin = req.headers.origin;
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
+
+function sendJson(req, res, status, data) {
+  res.writeHead(status, {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": getCorsOrigin(req),
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
+  });
+  res.end(JSON.stringify(data));
+}
+
+function parseJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 1_000_000) {
+        reject(new Error("Payload terlalu besar"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      if (!body) {
+        resolve({});
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(body));
+      } catch {
+        reject(new Error("JSON tidak valid"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+function userResponse(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    avatarUrl: user.avatar_url || undefined,
+  };
+}
+
+function validateRegisterInput(username, email, password) {
+  if (!/^[A-Za-z0-9_]{2,20}$/.test(username || "")) {
+    return "Username harus 2-20 karakter dan hanya berisi huruf, angka, atau underscore.";
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "")) {
+    return "Email tidak valid.";
+  }
+
+  if (!password || password.length < 6) {
+    return "Password minimal 6 karakter.";
+  }
+
+  return null;
+}
+
+function decodeGoogleCredential(credential) {
+  const [, payload] = String(credential || "").split(".");
+  if (!payload) throw new Error("Credential Google tidak valid");
+
+  const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+  const paddedPayload = normalizedPayload.padEnd(
+    normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+    "=",
+  );
+  return JSON.parse(Buffer.from(paddedPayload, "base64").toString("utf8"));
+}
+
+function createUniqueUsername(name, email) {
+  const source = name || email?.split("@")[0] || "player";
+  const base = source
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 16) || "player";
+
+  let username = base.length >= 2 ? base : `${base}_1`;
+  let suffix = 1;
+  const exists = db.prepare("SELECT id FROM users WHERE username = ?");
+  while (exists.get(username)) {
+    const suffixText = `_${suffix}`;
+    username = `${base.slice(0, 20 - suffixText.length)}${suffixText}`;
+    suffix += 1;
+  }
+  return username;
+}
+
+async function handleAuthRequest(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (!url.pathname.startsWith("/api/auth")) return false;
+
+  if (req.method === "OPTIONS") {
+    sendJson(req, res, 204, {});
+    return true;
+  }
+
+  try {
+    if (req.method === "POST" && url.pathname === "/api/auth/register") {
+      const { username, email, password } = await parseJsonBody(req);
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const normalizedUsername = String(username || "").trim();
+      const validationError = validateRegisterInput(normalizedUsername, normalizedEmail, password);
+      if (validationError) {
+        sendJson(req, res, 400, { message: validationError });
+        return true;
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      try {
+        const result = db
+          .prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)")
+          .run(normalizedUsername, normalizedEmail, passwordHash);
+        const user = db.prepare("SELECT * FROM users WHERE id = ?").get(result.lastInsertRowid);
+        sendJson(req, res, 201, { token: signToken(user.id), user: userResponse(user) });
+      } catch (error) {
+        if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+          sendJson(req, res, 409, { message: "Email atau username sudah dipakai." });
+          return true;
+        }
+        throw error;
+      }
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/auth/login") {
+      const { email, password } = await parseJsonBody(req);
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const user = db.prepare("SELECT * FROM users WHERE email = ?").get(normalizedEmail);
+
+      if (!user || !user.password_hash || !(await bcrypt.compare(String(password || ""), user.password_hash))) {
+        sendJson(req, res, 401, { message: "Email atau password salah." });
+        return true;
+      }
+
+      sendJson(req, res, 200, { token: signToken(user.id), user: userResponse(user) });
+      return true;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/auth/google") {
+      const { credential } = await parseJsonBody(req);
+      const profile = decodeGoogleCredential(credential);
+      if (!profile.sub || !profile.email) {
+        sendJson(req, res, 400, { message: "Credential Google tidak lengkap." });
+        return true;
+      }
+
+      const googleId = String(profile.sub);
+      const email = String(profile.email).trim().toLowerCase();
+      let user = db
+        .prepare("SELECT * FROM users WHERE google_id = ? OR email = ?")
+        .get(googleId, email);
+
+      if (user) {
+        db.prepare("UPDATE users SET google_id = COALESCE(google_id, ?), avatar_url = COALESCE(?, avatar_url) WHERE id = ?")
+          .run(googleId, profile.picture || null, user.id);
+        user = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+      } else {
+        const username = createUniqueUsername(profile.name, email);
+        const result = db
+          .prepare("INSERT INTO users (username, email, google_id, avatar_url) VALUES (?, ?, ?, ?)")
+          .run(username, email, googleId, profile.picture || null);
+        user = db.prepare("SELECT * FROM users WHERE id = ?").get(result.lastInsertRowid);
+      }
+
+      sendJson(req, res, 200, { token: signToken(user.id), user: userResponse(user) });
+      return true;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/auth/me") {
+      const authHeader = req.headers.authorization || "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+      const payload = verifyToken(token);
+      if (!payload?.userId) {
+        sendJson(req, res, 401, { message: "Token tidak valid." });
+        return true;
+      }
+
+      const user = db.prepare("SELECT * FROM users WHERE id = ?").get(payload.userId);
+      if (!user) {
+        sendJson(req, res, 401, { message: "User tidak ditemukan." });
+        return true;
+      }
+
+      sendJson(req, res, 200, { user: userResponse(user) });
+      return true;
+    }
+
+    sendJson(req, res, 404, { message: "Endpoint auth tidak ditemukan." });
+    return true;
+  } catch (error) {
+    sendJson(req, res, 500, { message: error.message || "Terjadi kesalahan server." });
+    return true;
+  }
+}
+
+httpServer.on("request", (req, res) => {
+  handleAuthRequest(req, res).then((handled) => {
+    if (!handled && !res.writableEnded && !req.url?.startsWith("/socket.io")) {
+      sendJson(req, res, 404, { message: "Not found" });
+    }
+  });
+});
 
 io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);

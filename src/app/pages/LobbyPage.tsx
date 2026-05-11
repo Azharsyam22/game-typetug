@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useAuth } from "../contexts/AuthContext";
 
 // ─── Utilities ─────────────────────────────────────────────────────────────────
 function kodeRandom() {
@@ -16,7 +17,8 @@ const KPM_LABEL: Record<TingkatBot, string> = { mudah: "~30 KPM", sedang: "~50 K
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function LobbyPage() {
   const navigate = useNavigate();
-  const [nama, setNama] = useState("");
+  const { user } = useAuth();
+  const [nama, setNama] = useState(() => (user?.username || user?.email || "").toUpperCase().slice(0, 12));
   const [modeAktif, setModeAktif] = useState<ModeAktif>("bot");
   const [tingkat, setTingkat] = useState<TingkatBot>("mudah");
   const [kodeInput, setKodeInput] = useState("");
