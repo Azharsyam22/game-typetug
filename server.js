@@ -1,12 +1,20 @@
 import { Server } from "socket.io";
 import { createServer } from "http";
 
+const PORT = process.env.PORT || 3001;
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ["http://localhost:5173", "http://localhost:5174"];
+
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // Dalam tahap dev/testing, izinkan semua. Nanti bisa diubah ke URL production.
-    methods: ["GET", "POST"]
-  }
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 const rooms = {};
@@ -301,7 +309,6 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = 3001;
 httpServer.listen(PORT, () => {
-  console.log(`Socket.IO Server is running on http://localhost:${PORT}`);
+  console.log(`Socket.IO Server is running on port ${PORT}`);
 });

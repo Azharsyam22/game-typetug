@@ -17,7 +17,7 @@ const bgImgMulti = new Image();
 bgImgMulti.src = new URL('../../assets/image/background-gameplay.png', import.meta.url).href;
 
 const fighterImgBot = new Image();
-fighterImgBot.src = new URL('../../assets/image/tug-fighter-bot.png', import.meta.url).href;
+fighterImgBot.src = new URL('../../assets/image/tug-fighter.png', import.meta.url).href;
 
 const bgImgBot = new Image();
 bgImgBot.src = new URL('../../assets/image/background-gameplay-bot.png', import.meta.url).href;

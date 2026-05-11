@@ -642,7 +642,6 @@ export default function LobbyPage() {
             >
               <div
                 style={{
-                  display: "inline-block",
                   width: "64px",
                   height: "64px",
                   background: "#FDE8E8",
