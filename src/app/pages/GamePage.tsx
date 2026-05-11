@@ -622,7 +622,7 @@ export default function GamePage() {
           </span>
         </button>
 
-        {/* Status */}
+        {/* Status - CENTER */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div
             style={{
@@ -634,7 +634,6 @@ export default function GamePage() {
           <span style={{ fontSize: "8px", color: "#2A1A18" }}>
             {fase === "menunggu" ? "MENUNGGU PEMAIN"
               : fase === "hitung" ? "BERSIAP..."
-              : fase === "jeda" ? "JEDA ANTAR ROUND"
               : fase === "bermain" ? "SEDANG BERLANGSUNG"
               : "PERTANDINGAN SELESAI"}
           </span>
@@ -643,62 +642,12 @@ export default function GamePage() {
           </span>
         </div>
 
-        {/* Round Indicators */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "8px", color: "#7A6858" }}>ROUND:</span>
-          {[1, 2, 3].map((round) => {
-            const roundWinner = roundWins[round - 1];
-            
-            // Tentukan warna berdasarkan siapa yang menang
-            // Hijau jika player menang, Merah jika player kalah, Abu-abu jika belum dimainkan
-            const playerWon = roundWinner === namaPlayer;
-            const playerLost = roundWinner && roundWinner !== namaPlayer;
-            const notPlayed = roundWinner === null;
-            
-            const indicatorColor = 
-              playerWon ? "#4A9060" :   // Hijau - Player menang
-              playerLost ? "#C84040" :  // Merah - Player kalah
-              "#9A8878";                 // Abu-abu - Belum dimainkan
-            
-            const indicatorBg = 
-              playerWon ? "#4A9060" :   // Hijau - Player menang
-              playerLost ? "#C84040" :  // Merah - Player kalah
-              "#D8CEB8";                 // Abu-abu - Belum dimainkan
-            
-            return (
-              <div
-                key={round}
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  border: `3px solid ${indicatorColor}`,
-                  background: indicatorBg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: currentRound === round ? "0 0 0 2px #C08030" : "none",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                <span style={{ 
-                  fontSize: round === 3 ? "7px" : "9px", 
-                  color: notPlayed ? "#7A6858" : "#FFF",
-                  fontWeight: "bold"
-                }}>
-                  {round === 3 ? "SD" : round}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
         {/* Buttons */}
         <div style={{ display: "flex", gap: "8px" }}>
           <TombolRetro
             label="▶ MULAI"
             onClick={() => {
-              if (fase === "menunggu" || fase === "selesai" || fase === "jeda") {
+              if (fase === "menunggu" || fase === "selesai") {
                 if (isMultiplayer) {
                   // Siapa saja yang klik, broadcast ke semua
                   socket.emit("startGame", { roomCode: kodeRoom });
