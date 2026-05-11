@@ -148,12 +148,57 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 4. Rematch System
+  // 4. Rematch System (Bidirectional)
   socket.on("requestRematch", ({ roomCode }) => {
-    socket.to(roomCode).emit("rematchRequested");
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    // Tandai bahwa socket ini request rematch
+    if (!room.rematchRequests) room.rematchRequests = new Set();
+    room.rematchRequests.add(socket.id);
+    
+    console.log(`Player ${socket.id} requested rematch in room ${roomCode}`);
+    
+    // Cek apakah kedua pemain sudah request (auto-accept)
+    const playerIds = Object.keys(room.players);
+    if (room.rematchRequests.size === 2) {
+      console.log(`Both players requested rematch in room ${roomCode} - AUTO ACCEPT`);
+      // Auto-accept: kedua pemain request bersamaan
+      room.rematchRequests.clear();
+      io.to(roomCode).emit("rematchAccepted");
+    } else {
+      // Hanya satu pemain yang request, beritahu lawan
+      socket.to(roomCode).emit("rematchRequested");
+    }
+  });
+
+  socket.on("cancelRematch", ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    // Hapus request dari set
+    if (room.rematchRequests) {
+      room.rematchRequests.delete(socket.id);
+    }
+    
+    console.log(`Player ${socket.id} cancelled rematch in room ${roomCode}`);
+    
+    // Beritahu lawan bahwa tantangan dibatalkan
+    socket.to(roomCode).emit("rematchCancelled");
   });
 
   socket.on("acceptRematch", ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    console.log(`Player ${socket.id} accepted rematch in room ${roomCode}`);
+    
+    // Clear rematch requests
+    if (room.rematchRequests) {
+      room.rematchRequests.clear();
+    }
+    
+    // Broadcast ke semua pemain untuk restart game
     io.to(roomCode).emit("rematchAccepted");
   });
 
@@ -167,7 +212,13 @@ io.on("connection", (socket) => {
     console.log("Player disconnected:", socket.id);
     for (const roomCode in rooms) {
       if (rooms[roomCode].players[socket.id]) {
+        // Cleanup rematch requests
+        if (rooms[roomCode].rematchRequests) {
+          rooms[roomCode].rematchRequests.delete(socket.id);
+        }
+        
         delete rooms[roomCode].players[socket.id];
+        
         // Jika room kosong, hapus room
         if (Object.keys(rooms[roomCode].players).length === 0) {
           delete rooms[roomCode];

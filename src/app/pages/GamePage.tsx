@@ -210,6 +210,12 @@ export default function GamePage() {
         setRematchReceived(true);
       });
 
+      socket.on("rematchCancelled", () => {
+        // Lawan cancel tantangan, reset state
+        setRematchReceived(false);
+        setRematchRequested(false);
+      });
+
       socket.on("rematchAccepted", () => {
         setShowScorePopup(false);
         resetPermainan();
@@ -244,6 +250,7 @@ export default function GamePage() {
         socket.off("opponentLeft");
         socket.off("joinError");
         socket.off("rematchRequested");
+        socket.off("rematchCancelled");
         socket.off("rematchAccepted");
         socket.off("opponentEndedGame");
         socket.disconnect();
@@ -486,9 +493,16 @@ export default function GamePage() {
       bersihkanData();
       mulaiPermainanRef.current();
     } else {
+      // Multiplayer mode
       if (rematchReceived) {
+        // User menerima tantangan dari lawan
         socket.emit("acceptRematch", { roomCode: kodeRoom });
+      } else if (rematchRequested) {
+        // User sudah request, klik lagi untuk CANCEL
+        setRematchRequested(false);
+        socket.emit("cancelRematch", { roomCode: kodeRoom });
       } else {
+        // User mengirim tantangan baru
         setRematchRequested(true);
         socket.emit("requestRematch", { roomCode: kodeRoom });
       }
@@ -1137,10 +1151,19 @@ export default function GamePage() {
             <div style={{ display: "flex", gap: "12px", width: "100%", marginTop: "8px" }}>
               {!lawanKeluar && (
                 <TombolRetro 
-                   label={!isMultiplayer ? "MAIN LAGI" : (rematchReceived ? "TERIMA TANTANGAN" : (rematchRequested ? "MENUNGGU..." : "MAIN LAGI"))} 
+                   label={
+                     !isMultiplayer ? "MAIN LAGI" : 
+                     rematchReceived ? "TERIMA TANTANGAN" : 
+                     rematchRequested ? "BATALKAN" : 
+                     "MAIN LAGI"
+                   } 
                    onClick={handleRematchClick} 
-                   accent={rematchRequested ? "#A89878" : rematchReceived ? "#4A9060" : "#4A9060"} 
-                   disabled={rematchRequested && !rematchReceived}
+                   accent={
+                     rematchRequested ? "#C84040" : 
+                     rematchReceived ? "#4A9060" : 
+                     "#4A9060"
+                   } 
+                   disabled={false}
                 />
               )}
               <TombolRetro label="KEMBALI KE LOBI" onClick={() => navigate("/lobby")} accent="#C08030" />
@@ -1251,10 +1274,19 @@ export default function GamePage() {
             <div style={{ display: "flex", width: "100%", justifyContent: lawanKeluar ? "center" : "space-between", marginTop: "8px" }}>
               {!lawanKeluar && (
                 <TombolRetro 
-                   label={!isMultiplayer ? "MAIN LAGI" : (rematchReceived ? "TERIMA TANTANGAN" : (rematchRequested ? "MENUNGGU..." : "MAIN LAGI"))} 
+                   label={
+                     !isMultiplayer ? "MAIN LAGI" : 
+                     rematchReceived ? "TERIMA TANTANGAN" : 
+                     rematchRequested ? "BATALKAN" : 
+                     "MAIN LAGI"
+                   } 
                    onClick={handleRematchClick} 
-                   accent={rematchRequested ? "#A89878" : rematchReceived ? "#4A9060" : "#4A9060"} 
-                   disabled={rematchRequested && !rematchReceived}
+                   accent={
+                     rematchRequested ? "#C84040" : 
+                     rematchReceived ? "#4A9060" : 
+                     "#4A9060"
+                   } 
+                   disabled={false}
                 />
               )}
               <TombolRetro label="KEMBALI KE LOBI" onClick={() => navigate("/lobby")} accent="#C08030" />
