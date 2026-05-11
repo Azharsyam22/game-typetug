@@ -122,6 +122,10 @@ typetug/
 - ✅ Input validation di server
 - ✅ Rate limiting untuk WebSocket events (recommended untuk production)
 
+## 🔧 Troubleshooting
+
+Mengalami masalah? Lihat [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) untuk solusi masalah umum.
+
 ## 📝 License
 
 MIT License
