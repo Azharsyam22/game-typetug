@@ -179,41 +179,7 @@ export default function GamePage() {
         mulaiPermainanRef.current();
       });
 
-      socket.on("roundResult", ({ round, winnerName, winnerPlayerId }) => {
-        // Sync hasil round dari server (winnerName adalah nama pemain yang menang, bukan "merah"/"biru")
-        setRoundWins(prev => {
-          const newRoundWins = [...prev];
-          newRoundWins[round - 1] = winnerName; // Simpan nama pemenang
-          return newRoundWins;
-        });
-        console.log(`Round ${round} result received: ${winnerName || 'DRAW'} wins`);
-      });
-
-      socket.on("displayRoundScorePopup", ({ round }) => {
-        // Sync tampilan round score popup
-        setCurrentRoundScore(round);
-        setShowRoundScorePopup(true);
-      });
-
-      socket.on("roundTransition", ({ nextRound, sharedWords }) => {
-        // Sync transisi ke round berikutnya
-        setShowRoundScorePopup(false);
-        setCurrentRound(nextRound);
-        
-        // Gunakan kata yang sama dari server untuk round berikutnya
-        if (sharedWords && sharedWords.length > 0) {
-          setKata(sharedWords);
-        }
-        
-        setFase("menunggu");
-      });
-
-      socket.on("displayFinalResults", () => {
-        // Sync tampilan final results
-        setShowRoundScorePopup(false);
-        setShowScorePopup(true);
-        setFase("selesai");
-      });
+      // Single round - no round result events needed
 
       socket.on("gameSyncTime", ({ timeLeft }) => {
         // Sync waktu dari pemain lain untuk memastikan timer sinkron
@@ -245,11 +211,7 @@ export default function GamePage() {
       });
 
       socket.on("rematchAccepted", () => {
-        setCurrentRound(1);
-        setRoundWins([null, null, null]);
-        setRoundStats([]);
         setShowScorePopup(false);
-        setShowRoundScorePopup(false);
         resetPermainan();
         
         // Otomatis mulai game setelah rematch accepted
@@ -275,10 +237,6 @@ export default function GamePage() {
       return () => {
         socket.off("roomReady");
         socket.off("gameStarted");
-        socket.off("roundResult");
-        socket.off("displayRoundScorePopup");
-        socket.off("roundTransition");
-        socket.off("displayFinalResults");
         socket.off("gameSyncTime");
         socket.off("opponentFinished");
         socket.off("bothPlayersFinished");
@@ -313,7 +271,7 @@ export default function GamePage() {
   const akhiriPermainanRef = useRef<() => void>(() => {});
   const akhiriPermainanDariSocketRef = useRef<() => void>(() => {});
   useEffect(() => {
-    if (fase !== "menunggu" && fase !== "selesai" && fase !== "jeda") return;
+    if (fase !== "menunggu" && fase !== "selesai") return;
     const handler = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
@@ -672,7 +630,7 @@ export default function GamePage() {
           flexDirection: "column", 
           overflow: "hidden", 
           minHeight: 0,
-          filter: (showRoundPopup || showFightPopup || fase === "jeda" || showScorePopup || showRoundScorePopup) ? "blur(4px)" : "none",
+          filter: (showFightPopup || showScorePopup) ? "blur(4px)" : "none",
           transition: "filter 0.3s ease",
         }}
       >
@@ -910,8 +868,8 @@ export default function GamePage() {
         <span style={{ color: "#A89878", fontSize: "7px" }}>SPASI = BERMAIN / KONFIRMASI</span>
       </footer>
 
-      {/* ── ROUND SCORE POPUP (AFTER EACH ROUND) ──────────────────────────── */}
-      {showRoundScorePopup && (
+      {/* ── COUNTDOWN POPUP (3-2-1) ──────────────────────────────────────────── */}
+      {showCountdownPopup && (
         <div
           style={{
             position: "fixed",
@@ -919,266 +877,9 @@ export default function GamePage() {
             left: 0,
             width: "100%",
             height: "100%",
-            background: "rgba(42, 26, 24, 0.6)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 200,
-            animation: "fadeIn 0.3s ease-out",
-          }}
-        >
-          <div
-            style={{
-              background: "#F4EDE0",
-              border: "5px solid #8C5A35",
-              boxShadow: "0 0 0 3px #C08030, 10px 10px 0 rgba(0,0,0,0.3)",
-              padding: "28px 36px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "20px",
-              animation: "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-              maxWidth: "480px",
-              position: "relative",
-            }}
-          >
-            {/* Decorative corners */}
-            {[
-              { top: -3, left: -3 }, { top: -3, right: -3 },
-              { bottom: -3, left: -3 }, { bottom: -3, right: -3 },
-            ].map((pos, i) => (
-              <div
-                key={i}
-                style={{
-                  position: "absolute",
-                  width: 16,
-                  height: 16,
-                  background: "#C08030",
-                  border: "2px solid #8C5A35",
-                  ...pos,
-                }}
-              />
-            ))}
-
-            {/* Title */}
-            <div
-              style={{
-                fontSize: "20px",
-                color: "#C08030",
-                textShadow: "3px 3px 0 #8C5A35",
-                letterSpacing: "3px",
-                textAlign: "center",
-              }}
-            >
-              {currentRoundScore === 3 ? "SUDDEN DEATH" : `ROUND ${currentRoundScore}`}
-            </div>
-
-            {/* Winner */}
-            {(() => {
-              const winnerName = roundWins[currentRoundScore - 1];
-              const stats = roundStats.find(s => s.round === currentRoundScore);
-              
-              // Tentukan warna berdasarkan siapa yang menang
-              const isPlayerWinner = winnerName === namaPlayer;
-              const isOpponentWinner = winnerName === namaMusuh || winnerName === "BOT";
-              const isDraw = winnerName === null;
-              
-              const winnerColor = isPlayerWinner ? "#4A9060" : isOpponentWinner ? "#C84040" : "#9A8878";
-              const displayWinnerName = winnerName ? winnerName.toUpperCase() : "SERI";
-              
-              return (
-                <>
-                  <div
-                    style={{
-                      fontSize: "18px",
-                      color: winnerColor,
-                      textShadow: "2px 2px 0 rgba(0,0,0,0.2)",
-                      letterSpacing: "1px",
-                    }}
-                  >
-                    {displayWinnerName} MENANG!
-                  </div>
-
-                  {/* Stats */}
-                  {stats && (
-                    <div style={{ width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "12px" }}>
-                      {/* Player Stats */}
-                      <div style={{ 
-                        background: "#E8DFCC",
-                        border: "3px solid #C84040",
-                        padding: "14px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "6px",
-                        alignItems: "center",
-                      }}>
-                        <div style={{ fontSize: "11px", color: "#C84040", fontWeight: "bold" }}>
-                          {namaPlayer.toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: "20px", color: "#2A1A18", marginTop: "6px" }}>
-                          {stats.playerWpm}
-                        </div>
-                        <div style={{ fontSize: "8px", color: "#7A6858" }}>
-                          KPM
-                        </div>
-                        <div style={{ fontSize: "16px", color: "#2A1A18", marginTop: "6px" }}>
-                          {stats.playerAccuracy}%
-                        </div>
-                        <div style={{ fontSize: "8px", color: "#7A6858" }}>
-                          AKURASI
-                        </div>
-                      </div>
-                      
-                      {/* Opponent Stats */}
-                      <div style={{ 
-                        background: "#E8DFCC",
-                        border: "3px solid #3A70B0",
-                        padding: "14px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "6px",
-                        alignItems: "center",
-                      }}>
-                        <div style={{ fontSize: "11px", color: "#3A70B0", fontWeight: "bold" }}>
-                          {isMultiplayer ? namaMusuh.toUpperCase() : "BOT"}
-                        </div>
-                        <div style={{ fontSize: "20px", color: "#2A1A18", marginTop: "6px" }}>
-                          {stats.opponentWpm}
-                        </div>
-                        <div style={{ fontSize: "8px", color: "#7A6858" }}>
-                          KPM
-                        </div>
-                        <div style={{ fontSize: "16px", color: "#2A1A18", marginTop: "6px" }}>
-                          {stats.opponentAccuracy}%
-                        </div>
-                        <div style={{ fontSize: "8px", color: "#7A6858" }}>
-                          AKURASI
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* ── JEDA POPUP (BETWEEN ROUNDS) ───────────────────────────────────── */}
-      {fase === "jeda" && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            background: "rgba(42, 26, 24, 0.6)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 200,
-            animation: "fadeIn 0.3s ease-out",
-          }}
-        >
-          <div
-            style={{
-              background: "linear-gradient(135deg, #F4EDE0 0%, #E8DFCC 100%)",
-              border: "6px solid #C08030",
-              boxShadow: "0 0 0 3px #8C5A35, 12px 12px 0 rgba(0,0,0,0.3)",
-              padding: "50px 70px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "24px",
-              animation: "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-              position: "relative",
-            }}
-          >
-            {/* Decorative corners */}
-            {[
-              { top: -3, left: -3 }, { top: -3, right: -3 },
-              { bottom: -3, left: -3 }, { bottom: -3, right: -3 },
-            ].map((pos, i) => (
-              <div
-                key={i}
-                style={{
-                  position: "absolute",
-                  width: 16,
-                  height: 16,
-                  background: "#C08030",
-                  border: "2px solid #8C5A35",
-                  ...pos,
-                }}
-              />
-            ))}
-            
-            {/* Round 1 Result */}
-            <div
-              style={{
-                fontSize: "clamp(24px, 5vw, 36px)",
-                color: roundWins[0] === "merah" ? "#C84040" : roundWins[0] === "biru" ? "#3A70B0" : "#9A8878",
-                textShadow: "4px 4px 0 #8C5A35",
-                letterSpacing: "4px",
-                textAlign: "center",
-              }}
-            >
-              ROUND 1: {
-                roundWins[0] === "merah" ? namaPlayer.toUpperCase() : 
-                roundWins[0] === "biru" ? (isMultiplayer ? namaMusuh.toUpperCase() : "BOT") : 
-                "SERI"
-              }
-            </div>
-
-            {/* Divider */}
-            <div style={{ width: "100%", height: "3px", background: "#C8BEA8" }} />
-
-            {/* Next Round Info */}
-            <div
-              style={{
-                fontSize: "clamp(16px, 3vw, 20px)",
-                color: "#7A6858",
-                letterSpacing: "2px",
-                textAlign: "center",
-              }}
-            >
-              BERSIAP UNTUK ROUND 2...
-            </div>
-
-            {/* Instruction */}
-            {isMultiplayer && (
-              <div
-                style={{
-                  fontSize: "clamp(10px, 2vw, 12px)",
-                  color: "#C08030",
-                  letterSpacing: "1px",
-                  textAlign: "center",
-                  animation: "blinkPulse 1.5s ease infinite",
-                }}
-              >
-                [ TEKAN SPASI UNTUK MULAI ]
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── ROUND POPUP ──────────────────────────────────────────────────── */}
-      {showRoundPopup && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            background: "rgba(42, 26, 24, 0.5)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
+            background: "rgba(42, 26, 24, 0.7)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1188,48 +889,14 @@ export default function GamePage() {
         >
           <div
             style={{
-              background: "linear-gradient(135deg, #F4EDE0 0%, #E8DFCC 100%)",
-              border: "6px solid #C08030",
-              boxShadow: "0 0 0 3px #8C5A35, 12px 12px 0 rgba(0,0,0,0.3)",
-              padding: "60px 80px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "20px",
+              fontSize: "120px",
+              color: "#C08030",
+              textShadow: "8px 8px 0 #8C5A35",
+              fontWeight: "bold",
               animation: "popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-              position: "relative",
             }}
           >
-            {/* Decorative corners */}
-            {[
-              { top: -3, left: -3 }, { top: -3, right: -3 },
-              { bottom: -3, left: -3 }, { bottom: -3, right: -3 },
-            ].map((pos, i) => (
-              <div
-                key={i}
-                style={{
-                  position: "absolute",
-                  width: 16,
-                  height: 16,
-                  background: "#C08030",
-                  border: "2px solid #8C5A35",
-                  ...pos,
-                }}
-              />
-            ))}
-            
-            <div
-              style={{
-                fontSize: "clamp(48px, 8vw, 72px)",
-                color: "#C08030",
-                textShadow: "6px 6px 0 #8C5A35, 3px 3px 0 rgba(0,0,0,0.2)",
-                letterSpacing: "8px",
-                fontWeight: "bold",
-                animation: "shimmer 0.5s ease-in-out",
-              }}
-            >
-              {currentRound === 3 ? "SUDDEN DEATH" : `ROUND ${currentRound}`}
-            </div>
+            {countdownNumber}
           </div>
         </div>
       )}
@@ -1243,9 +910,9 @@ export default function GamePage() {
             left: 0,
             width: "100%",
             height: "100%",
-            background: "rgba(42, 26, 24, 0.5)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
+            background: "rgba(42, 26, 24, 0.7)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1301,7 +968,7 @@ export default function GamePage() {
         </div>
       )}
 
-      {/* ── SCORE POPUP (AFTER ROUND 2) ────────────────────────────────────── */}
+      {/* ── SCORE POPUP (FINAL RESULTS) ────────────────────────────────────── */}
       {showScorePopup && (
         <div
           style={{
@@ -1326,15 +993,13 @@ export default function GamePage() {
               background: "#F4EDE0",
               border: "6px solid #8C5A35",
               boxShadow: "0 0 0 3px #C08030, 12px 12px 0 rgba(0,0,0,0.3)",
-              padding: "24px 32px",
+              padding: "32px 40px",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: "16px",
+              gap: "20px",
               animation: "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
               maxWidth: "500px",
-              maxHeight: "85vh",
-              overflowY: "auto",
               position: "relative",
               margin: "20px",
             }}
@@ -1360,7 +1025,7 @@ export default function GamePage() {
             {/* Title */}
             <div
               style={{
-                fontSize: "18px",
+                fontSize: "20px",
                 color: "#C08030",
                 textShadow: "3px 3px 0 #8C5A35",
                 letterSpacing: "2px",
@@ -1370,147 +1035,106 @@ export default function GamePage() {
               HASIL PERTANDINGAN
             </div>
 
-            {/* Round Results */}
-            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "12px" }}>
-              {roundStats.map((stats) => {
-                const round = stats.round;
-                const winnerName = roundWins[round - 1];
-                
-                // Tentukan warna berdasarkan siapa yang menang
-                const isPlayerWinner = winnerName === namaPlayer;
-                const isOpponentWinner = winnerName && winnerName !== namaPlayer;
-                const isDraw = winnerName === null;
-                
-                const winnerColor = isPlayerWinner ? "#4A9060" : isOpponentWinner ? "#C84040" : "#9A8878";
-                const displayWinnerName = winnerName ? winnerName.toUpperCase() : "SERI";
-                
-                return (
-                  <div
-                    key={round}
-                    style={{
-                      background: "#E8DFCC",
-                      border: "2px solid #C8BEA8",
-                      padding: "10px 12px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {/* Header */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <div
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: "50%",
-                            border: `2px solid ${winnerColor}`,
-                            background: isDraw ? "#D8CEB8" : winnerColor,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <span style={{ 
-                            fontSize: round === 3 ? "7px" : "9px", 
-                            color: isDraw ? "#7A6858" : "#FFF",
-                            fontWeight: "bold"
-                          }}>
-                            {round === 3 ? "SD" : round}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: "10px", color: "#2A1A18" }}>
-                          {round === 3 ? "SUDDEN DEATH" : `ROUND ${round}`}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: "9px", color: winnerColor }}>
-                        {displayWinnerName}
-                      </div>
-                    </div>
-                    
-                    {/* Stats */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", paddingTop: "6px", borderTop: "1px solid #C8BEA8" }}>
-                      {/* Player Stats */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                        <div style={{ fontSize: "8px", color: "#C84040", fontWeight: "bold" }}>
-                          {namaPlayer.toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: "7px", color: "#2A1A18" }}>
-                          KPM: {stats.playerWpm}
-                        </div>
-                        <div style={{ fontSize: "7px", color: "#2A1A18" }}>
-                          AKU: {stats.playerAccuracy}%
-                        </div>
-                      </div>
-                      
-                      {/* Opponent Stats */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "3px", alignItems: "flex-end" }}>
-                        <div style={{ fontSize: "8px", color: "#3A70B0", fontWeight: "bold" }}>
-                          {isMultiplayer ? namaMusuh.toUpperCase() : "BOT"}
-                        </div>
-                        <div style={{ fontSize: "7px", color: "#2A1A18" }}>
-                          KPM: {stats.opponentWpm}
-                        </div>
-                        <div style={{ fontSize: "7px", color: "#2A1A18" }}>
-                          AKU: {stats.opponentAccuracy}%
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Final Winner */}
+            {/* Winner Announcement */}
             <div
               style={{
                 width: "100%",
                 background: "linear-gradient(135deg, #FDF0EE 0%, #EDF3FD 100%)",
                 border: "3px solid #C08030",
-                padding: "16px",
+                padding: "20px",
                 textAlign: "center",
               }}
             >
               {(() => {
-                // Hitung kemenangan berdasarkan nama pemain
-                const playerWins = roundWins.filter(w => w === namaPlayer).length;
-                const opponentWins = roundWins.filter(w => w && w !== namaPlayer).length;
+                const isPlayerWinner = posiTali > 50;
+                const isOpponentWinner = posiTali < 50;
+                const isDraw = posiTali === 50;
                 
-                const finalWinnerName = 
-                  playerWins > opponentWins ? namaPlayer.toUpperCase() : 
-                  opponentWins > playerWins ? (isMultiplayer ? namaMusuh.toUpperCase() : "BOT") : 
-                  null;
-                
-                const finalWinnerColor = 
-                  playerWins > opponentWins ? "#C84040" : 
-                  opponentWins > playerWins ? "#3A70B0" : 
-                  "#9A8878";
+                const winnerColor = isPlayerWinner ? "#C84040" : isOpponentWinner ? "#3A70B0" : "#9A8878";
+                const winnerName = isPlayerWinner ? namaPlayer.toUpperCase() : 
+                                   isOpponentWinner ? (isMultiplayer ? namaMusuh.toUpperCase() : "BOT") : 
+                                   null;
                 
                 return (
                   <>
-                    <div style={{ fontSize: "9px", color: "#7A6858", marginBottom: "8px" }}>
-                      PEMENANG FINAL
+                    <div style={{ fontSize: "10px", color: "#7A6858", marginBottom: "12px" }}>
+                      PEMENANG
                     </div>
                     <div
                       style={{
-                        fontSize: "20px",
-                        color: finalWinnerColor,
+                        fontSize: "24px",
+                        color: winnerColor,
                         textShadow: "2px 2px 0 rgba(0,0,0,0.2)",
                         letterSpacing: "1px",
+                        marginBottom: "8px",
                       }}
                     >
-                      {finalWinnerName ? `🏆 ${finalWinnerName} 🏆` : "⚖️ SERI ⚖️"}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#2A1A18", marginTop: "6px" }}>
-                      {playerWins} - {opponentWins}
+                      {winnerName ? `🏆 ${winnerName} 🏆` : "⚖️ SERI ⚖️"}
                     </div>
                   </>
                 );
               })()}
             </div>
 
+            {/* Stats Comparison */}
+            <div style={{ width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              {/* Player Stats */}
+              <div style={{ 
+                background: "#E8DFCC",
+                border: "3px solid #C84040",
+                padding: "16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                alignItems: "center",
+              }}>
+                <div style={{ fontSize: "11px", color: "#C84040", fontWeight: "bold", marginBottom: "4px" }}>
+                  {namaPlayer.toUpperCase()}
+                </div>
+                <div style={{ fontSize: "24px", color: "#2A1A18" }}>
+                  {wpmPlayer}
+                </div>
+                <div style={{ fontSize: "8px", color: "#7A6858" }}>
+                  KPM
+                </div>
+                <div style={{ fontSize: "18px", color: "#2A1A18", marginTop: "4px" }}>
+                  {akuPlayer}%
+                </div>
+                <div style={{ fontSize: "8px", color: "#7A6858" }}>
+                  AKURASI
+                </div>
+              </div>
+              
+              {/* Opponent Stats */}
+              <div style={{ 
+                background: "#E8DFCC",
+                border: "3px solid #3A70B0",
+                padding: "16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                alignItems: "center",
+              }}>
+                <div style={{ fontSize: "11px", color: "#3A70B0", fontWeight: "bold", marginBottom: "4px" }}>
+                  {isMultiplayer ? namaMusuh.toUpperCase() : "BOT"}
+                </div>
+                <div style={{ fontSize: "24px", color: "#2A1A18" }}>
+                  {wpmBot}
+                </div>
+                <div style={{ fontSize: "8px", color: "#7A6858" }}>
+                  KPM
+                </div>
+                <div style={{ fontSize: "18px", color: "#2A1A18", marginTop: "4px" }}>
+                  {akuBot}%
+                </div>
+                <div style={{ fontSize: "8px", color: "#7A6858" }}>
+                  AKURASI
+                </div>
+              </div>
+            </div>
+
             {/* Buttons */}
-            <div style={{ display: "flex", gap: "10px", width: "100%", marginTop: "4px" }}>
+            <div style={{ display: "flex", gap: "12px", width: "100%", marginTop: "8px" }}>
               {!lawanKeluar && (
                 <TombolRetro 
                    label={!isMultiplayer ? "MAIN LAGI" : (rematchReceived ? "TERIMA TANTANGAN" : (rematchRequested ? "MENUNGGU..." : "MAIN LAGI"))} 
