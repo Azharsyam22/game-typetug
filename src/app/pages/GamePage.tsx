@@ -207,6 +207,7 @@ export default function GamePage() {
       });
 
       socket.on("rematchRequested", () => {
+        console.log("🔔 Received rematchRequested event from opponent");
         setRematchReceived(true);
       });
 
@@ -496,13 +497,16 @@ export default function GamePage() {
       // Multiplayer mode
       if (rematchReceived) {
         // User menerima tantangan dari lawan
+        console.log("✅ Accepting rematch from opponent");
         socket.emit("acceptRematch", { roomCode: kodeRoom });
       } else if (rematchRequested) {
         // User sudah request, klik lagi untuk CANCEL
+        console.log("❌ Cancelling rematch request");
         setRematchRequested(false);
         socket.emit("cancelRematch", { roomCode: kodeRoom });
       } else {
         // User mengirim tantangan baru
+        console.log("📤 Sending rematch request");
         setRematchRequested(true);
         socket.emit("requestRematch", { roomCode: kodeRoom });
       }

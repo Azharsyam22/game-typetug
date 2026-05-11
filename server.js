@@ -151,23 +151,28 @@ io.on("connection", (socket) => {
   // 4. Rematch System (Bidirectional)
   socket.on("requestRematch", ({ roomCode }) => {
     const room = rooms[roomCode];
-    if (!room) return;
+    if (!room) {
+      console.log(`❌ Room ${roomCode} not found for rematch request`);
+      return;
+    }
     
     // Tandai bahwa socket ini request rematch
     if (!room.rematchRequests) room.rematchRequests = new Set();
     room.rematchRequests.add(socket.id);
     
-    console.log(`Player ${socket.id} requested rematch in room ${roomCode}`);
+    console.log(`📤 Player ${socket.id} requested rematch in room ${roomCode}`);
+    console.log(`   Current requests: ${room.rematchRequests.size}/2`);
     
     // Cek apakah kedua pemain sudah request (auto-accept)
     const playerIds = Object.keys(room.players);
     if (room.rematchRequests.size === 2) {
-      console.log(`Both players requested rematch in room ${roomCode} - AUTO ACCEPT`);
+      console.log(`✅ Both players requested rematch in room ${roomCode} - AUTO ACCEPT`);
       // Auto-accept: kedua pemain request bersamaan
       room.rematchRequests.clear();
       io.to(roomCode).emit("rematchAccepted");
     } else {
       // Hanya satu pemain yang request, beritahu lawan
+      console.log(`🔔 Notifying opponent in room ${roomCode}`);
       socket.to(roomCode).emit("rematchRequested");
     }
   });
