@@ -449,6 +449,7 @@ export default function GamePage() {
     setWpmPlayer(0); setAkuPlayer(100); setProgresPlayer(0);
     setSedangKetik(false);
     setRematchRequested(false); setRematchReceived(false);
+    setLawanKeluar(false); // Reset lawanKeluar state
     if (!isMultiplayer) {
       setProgresBot(0); setWpmBot(0); setAkuBot(92);
     }
