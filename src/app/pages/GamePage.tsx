@@ -363,9 +363,36 @@ export default function GamePage() {
   }, [kataBetul, totalHuruf, kesalahan, fase]);
 
   // ── Input handler ────────────────────────────────────────────────────────────
+  const submitCurrentWord = useCallback((rawValue?: string) => {
+    const target = kata[indekKata];
+    const attempt = (rawValue ?? input).trim();
+
+    if (!target) return;
+
+    if (attempt === target) {
+      const baru = indekKata + 1;
+      setKataBetul((c) => c + 1);
+      setTotalHuruf((t) => t + target.length);
+      setIndekKata(baru);
+      setInput("");
+      setBagianBenar("");
+      setBagianSalah("");
+      setProgresPlayer(Math.round((baru / 40) * 100));
+      if (baru >= kata.length - 15) {
+        setKata((prev) => [...prev, ...acakKata()]);
+      }
+    } else {
+      setInput(attempt);
+      setKesalahan((e) => e + 1);
+    }
+  }, [indekKata, input, kata]);
+
   const handleInput = useCallback((nilai: string) => {
     if (fase !== "bermain") return;
-    setInput(nilai);
+
+    const hasSubmitSpace = /\s/.test(nilai);
+    const cleanedValue = hasSubmitSpace ? nilai.split(/\s/)[0] : nilai;
+    setInput(cleanedValue);
     setSedangKetik(true);
     if (timerKetik.current) clearTimeout(timerKetik.current);
     timerKetik.current = setTimeout(() => setSedangKetik(false), 500);
@@ -379,33 +406,22 @@ export default function GamePage() {
     setBagianBenar(benar);
     setBagianSalah(salah);
     if (salah.length > 0) setKesalahan((e) => e + 1);
-    else setTotalHuruf(benar.length);
-  }, [fase, kata, indekKata]);
+    if (hasSubmitSpace) {
+      submitCurrentWord(cleanedValue);
+    }
+  }, [fase, kata, indekKata, submitCurrentWord]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (fase === "menunggu" || fase === "selesai") {
-      if (e.code === "Space") { e.preventDefault(); mulaiPermainan(); }
+      if (e.code === "Space" || e.key === " " || e.key === "Spacebar" || e.key === "Enter") { e.preventDefault(); mulaiPermainan(); }
       return;
     }
     if (fase !== "bermain") return;
-    if (e.code === "Space") {
+    if (e.code === "Space" || e.key === " " || e.key === "Spacebar" || e.key === "Enter") {
       e.preventDefault();
-      const target = kata[indekKata];
-      if (input.trim() === target) {
-        const baru = indekKata + 1;
-        setKataBetul((c) => c + 1);
-        setTotalHuruf((t) => t + target.length);
-        setIndekKata(baru);
-        setInput(""); setBagianBenar(""); setBagianSalah("");
-        setProgresPlayer(Math.round((baru / 40) * 100)); // Sekadar acuan awal, bukan penentu tamat
-        if (baru >= kata.length - 15) {
-          setKata((prev) => [...prev, ...acakKata()]);
-        }
-      } else {
-        setKesalahan((e) => e + 1);
-      }
+      submitCurrentWord();
     }
-  }, [fase, kata, indekKata, input]);
+  }, [fase, submitCurrentWord]);
 
   const akhiriPermainan = () => {
     setFase((prev) => {
@@ -555,8 +571,10 @@ export default function GamePage() {
 
   return (
     <div
+      className="game-page-shell"
       style={{
-        height: "100vh", // Mengunci ketinggian absolut 100vh untuk mencegah scrolling
+        minHeight: "100svh",
+        height: "100vh",
         width: "100%",
         background: "#F0E8D8",
         fontFamily: "'Press Start 2P', monospace",
@@ -582,10 +600,91 @@ export default function GamePage() {
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #E8DFCC; }
         ::-webkit-scrollbar-thumb { background: #C0B098; }
+        @media (max-width: 760px) {
+          .game-page-shell {
+            height: auto !important;
+            min-height: 100svh !important;
+            overflow: auto !important;
+          }
+          .game-header {
+            padding: 6px 8px !important;
+            gap: 8px !important;
+            flex-wrap: wrap !important;
+          }
+          .game-logo span:first-child {
+            font-size: 14px !important;
+          }
+          .game-logo span:last-child,
+          .game-status span {
+            font-size: 6px !important;
+            letter-spacing: 0.5px !important;
+          }
+          .game-status {
+            order: 3 !important;
+            width: 100% !important;
+            justify-content: center !important;
+            gap: 6px !important;
+          }
+          .game-header-actions {
+            gap: 5px !important;
+          }
+          .game-header-actions button {
+            padding: 8px 7px !important;
+            font-size: 7px !important;
+          }
+          .game-main {
+            overflow: visible !important;
+          }
+          .game-battle-hud {
+            grid-template-columns: 1fr !important;
+            padding: 6px 8px !important;
+            gap: 6px !important;
+          }
+          .game-team-card {
+            min-width: 0 !important;
+          }
+          .game-team-card > div:first-child,
+          .game-team-card > div:last-child {
+            width: 34px !important;
+            height: 34px !important;
+          }
+          .game-team-card div {
+            min-width: 0 !important;
+          }
+          .game-team-card [data-player-name] {
+            font-size: 7px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+          .game-center-hud {
+            min-width: 0 !important;
+            width: 100% !important;
+            order: -1 !important;
+          }
+          .game-center-hud > div:first-child {
+            font-size: 9px !important;
+            text-align: center !important;
+            line-height: 1.35 !important;
+          }
+          .game-console-bar,
+          .game-footer {
+            display: none !important;
+          }
+          .game-typing-wrap {
+            padding: 6px 8px !important;
+          }
+          .game-scene-wrap {
+            min-height: 150px !important;
+            height: 34svh !important;
+            flex: none !important;
+          }
+        }
       `}</style>
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
       <header
+        className="game-header"
         style={{
           background: "#E5CBA2",
           borderBottom: "3px solid #8C5A35",
@@ -599,6 +698,7 @@ export default function GamePage() {
       >
         {/* Logo */}
         <button
+          className="game-logo"
           onClick={() => navigate("/lobby")}
           style={{
             background: "none", border: "none", cursor: "pointer",
@@ -615,7 +715,7 @@ export default function GamePage() {
         </button>
 
         {/* Status - CENTER */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="game-status" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div
             style={{
               width: 10, height: 10,
@@ -635,7 +735,7 @@ export default function GamePage() {
         </div>
 
         {/* Buttons */}
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div className="game-header-actions" style={{ display: "flex", gap: "8px" }}>
           <TombolRetro
             label="▶ MULAI"
             onClick={() => {
@@ -657,7 +757,8 @@ export default function GamePage() {
       </header>
 
       {/* ── MAIN ────────────────────────────────────────────────────────────── */}
-      <main 
+      <main
+        className="game-main"
         style={{ 
           flex: 1, 
           display: "flex", 
@@ -673,6 +774,7 @@ export default function GamePage() {
         {/* ── TOP STATS HUD BAR ─────────────────────────────────────────────── */}
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <div
+          className="game-battle-hud"
           style={{
             background: "#E5CBA2", // Warna parchment
             borderBottom: "4px solid #8C5A35",
@@ -687,6 +789,7 @@ export default function GamePage() {
         >
           {/* ── RED TEAM BLOCK ─────────────────────────────────────────────── */}
           <div
+            className="game-team-card"
             style={{
               display: "flex",
               alignItems: "center",
@@ -717,7 +820,7 @@ export default function GamePage() {
 
             {/* Stats */}
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-              <div style={{ color: "#C84040", fontSize: "9px", fontWeight: "bold" }}>◀ {namaPlayer.toUpperCase()}</div>
+              <div data-player-name style={{ color: "#C84040", fontSize: "9px", fontWeight: "bold" }}>◀ {namaPlayer.toUpperCase()}</div>
               <div style={{ color: "#2A1A18", fontSize: "8px" }}>KPM: {wpmPlayer}</div>
               <div style={{ color: "#2A1A18", fontSize: "8px" }}>AKURASI: {akuPlayer}%</div>
               {/* Progress bar */}
@@ -730,6 +833,7 @@ export default function GamePage() {
 
           {/* ── CENTER: TITLE & BATTLE BAR ─────────────────────────────────── */}
           <div
+            className="game-center-hud"
             style={{
               display: "flex",
               flexDirection: "column",
@@ -779,6 +883,7 @@ export default function GamePage() {
 
           {/* ── BLUE TEAM BLOCK ────────────────────────────────────────────── */}
           <div
+            className="game-team-card"
             style={{
               display: "flex",
               alignItems: "center",
@@ -794,7 +899,7 @@ export default function GamePage() {
 
             {/* Stats */}
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, alignItems: "flex-end" }}>
-              <div style={{ color: "#3A70B0", fontSize: "9px", fontWeight: "bold" }}>{isMultiplayer ? (namaMusuh !== "MENUNGGU..." ? namaMusuh.toUpperCase() : "MENUNGGU...") : "BOT"} ▶</div>
+              <div data-player-name style={{ color: "#3A70B0", fontSize: "9px", fontWeight: "bold" }}>{isMultiplayer ? (namaMusuh !== "MENUNGGU..." ? namaMusuh.toUpperCase() : "MENUNGGU...") : "BOT"} ▶</div>
               <div style={{ color: "#2A1A18", fontSize: "8px" }}>KPM: {wpmBot}</div>
               <div style={{ color: "#2A1A18", fontSize: "8px" }}>AKURASI: {akuBot}%</div>
               {/* Bot progress bar */}
@@ -824,6 +929,7 @@ export default function GamePage() {
 
         {/* ── CONSOLE BAR ────────────────────────────────────────────────────── */}
         <div
+          className="game-console-bar"
           style={{
             background: "#E5CBA2",
             borderBottom: "2px solid #8C5A35",
@@ -841,6 +947,7 @@ export default function GamePage() {
 
         {/* ── TYPING AREA ─────────────────────────────────────────────────────── */}
         <div
+          className="game-typing-wrap"
           style={{
             padding: "4px 20px",
             background: "#E5CBA2",
@@ -856,6 +963,7 @@ export default function GamePage() {
             inputValue={input}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
+            onSubmitWord={submitCurrentWord}
             wpm={wpmPlayer}
             accuracy={akuPlayer}
             timeLeft={waktuSisa}
@@ -866,6 +974,7 @@ export default function GamePage() {
 
         {/* ── TUG SCENE ────────────────────────────────────────────────────────── */}
         <div
+          className="game-scene-wrap"
           style={{
             flex: 1,
             overflow: "hidden",
@@ -887,6 +996,7 @@ export default function GamePage() {
 
       {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
       <footer
+        className="game-footer"
         style={{
           background: "#F8F2E6",
           borderTop: "2px solid #D8CEB8",

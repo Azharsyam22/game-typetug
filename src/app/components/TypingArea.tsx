@@ -8,6 +8,7 @@ interface TypingAreaProps {
   inputValue: string;
   onInput: (value: string) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
+  onSubmitWord: () => void;
   wpm: number;
   accuracy: number;
   timeLeft: number;
@@ -23,6 +24,7 @@ export function TypingArea({
   inputValue,
   onInput,
   onKeyDown,
+  onSubmitWord,
   wpm,
   accuracy,
   timeLeft,
@@ -45,10 +47,74 @@ export function TypingArea({
   const timerOrange = timeLeft <= 20 && timeLeft > 10;
 
   return (
-    <div style={{ fontFamily: "'Press Start 2P', monospace", display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div className="typing-area" style={{ fontFamily: "'Press Start 2P', monospace", display: "flex", flexDirection: "column", gap: "6px" }}>
+      <style>{`
+        @media (max-width: 760px) {
+          .typing-stats {
+            display: grid !important;
+            grid-template-columns: 1fr auto 1fr !important;
+            gap: 6px !important;
+            padding: 6px 8px !important;
+          }
+          .typing-stat-group {
+            gap: 8px !important;
+            min-width: 0 !important;
+          }
+          .typing-stat-badge span:first-child {
+            font-size: 6px !important;
+          }
+          .typing-stat-badge span:last-child {
+            font-size: 10px !important;
+          }
+          .typing-timer span:nth-child(2) {
+            font-size: 22px !important;
+            min-width: 38px !important;
+          }
+          .typing-timer span:last-child {
+            display: none !important;
+          }
+          .typing-word-panel {
+            min-height: 58px !important;
+            max-height: 58px !important;
+            padding: 9px 8px !important;
+          }
+          .typing-word-list {
+            gap: 5px !important;
+          }
+          .typing-word-list span {
+            padding: 3px 4px !important;
+          }
+          .typing-word-list span span {
+            font-size: 16px !important;
+            letter-spacing: 0 !important;
+          }
+          .typing-input-row {
+            padding: 5px 7px !important;
+            gap: 7px !important;
+          }
+          .typing-input-row input {
+            font-size: 16px !important;
+            letter-spacing: 0.5px !important;
+            min-width: 0 !important;
+          }
+          .typing-error-pill {
+            display: none !important;
+          }
+          .typing-submit-button {
+            display: inline-flex !important;
+          }
+          .typing-hint-row {
+            gap: 8px !important;
+          }
+          .typing-hint-row span {
+            font-size: 6px !important;
+          }
+        }
+      `}</style>
 
       {/* Stats bar */}
       <div
+        className="typing-stats"
         style={{
           display: "flex",
           alignItems: "center",
@@ -59,13 +125,13 @@ export function TypingArea({
           boxShadow: "inset 2px 2px 0 rgba(255,255,255,0.4), 2px 2px 0 #8C5A3580",
         }}
       >
-        <div style={{ display: "flex", gap: "24px" }}>
+        <div className="typing-stat-group" style={{ display: "flex", gap: "24px" }}>
           <StatBadge label="WPM" value={wpm} color="#C84040" />
           <StatBadge label="AKURASI" value={`${accuracy}%`} color="#3A70B0" />
         </div>
 
         {/* Timer — big and prominent */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="typing-timer" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div
             style={{
               width: 12,
@@ -87,7 +153,7 @@ export function TypingArea({
           <span style={{ color: "#9A8878", fontSize: "8px" }}>DTK</span>
         </div>
 
-        <div style={{ display: "flex", gap: "24px" }}>
+        <div className="typing-stat-group" style={{ display: "flex", gap: "24px" }}>
           <StatBadge label="KATA" value={currentWordIndex} color="#6A5878" />
           <StatBadge label="SISA" value={Math.max(0, words.length - currentWordIndex)} color="#9A7848" />
         </div>
@@ -96,6 +162,7 @@ export function TypingArea({
       {/* Text display — enlarged */}
       <div
         ref={wrapRef}
+        className="typing-word-panel"
         style={{
           background: "#F4E4C8",
           border: `2px solid ${hasError ? "#C84040" : "#8C5A35"}`,
@@ -136,7 +203,7 @@ export function TypingArea({
         ))}
 
         {/* Words — wrapped single line */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "2px", overflow: "hidden" }}>
+        <div className="typing-word-list" style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "2px", overflow: "hidden" }}>
           {words.map((word, wi) => {
             const isDone = wi < currentWordIndex;
             const isCurrent = wi === currentWordIndex;
@@ -199,6 +266,7 @@ export function TypingArea({
 
       {/* Input */}
       <div
+        className="typing-input-row"
         style={{
           background: "#F4E4C8",
           border: `2px solid ${hasError ? "#C84040" : "#8C5A35"}`,
@@ -218,6 +286,7 @@ export function TypingArea({
           onChange={(e) => onInput(e.target.value)}
           onKeyDown={onKeyDown}
           disabled={gamePhase !== "playing"}
+          inputMode="text"
           style={{
             flex: 1,
             background: "transparent",
@@ -251,6 +320,7 @@ export function TypingArea({
           </span>
         )}
         <div
+          className="typing-error-pill"
           style={{
             background: "#F0D8D8",
             border: "1px solid #D09090",
@@ -261,10 +331,33 @@ export function TypingArea({
         >
           <span style={{ color: "#C84040", fontSize: "8px" }}>✗ SALAH</span>
         </div>
+        <button
+          type="button"
+          className="typing-submit-button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onSubmitWord}
+          disabled={gamePhase !== "playing"}
+          style={{
+            display: "none",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "34px",
+            padding: "0 10px",
+            background: "#C08030",
+            border: "2px solid #8C5A35",
+            color: "#FDFAF4",
+            fontFamily: "'Press Start 2P', monospace",
+            fontSize: "8px",
+            flexShrink: 0,
+            boxShadow: "2px 2px 0 #8C5A3540",
+          }}
+        >
+          OK
+        </button>
       </div>
 
       {/* Hint row */}
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px" }}>
+      <div className="typing-hint-row" style={{ display: "flex", justifyContent: "space-between", padding: "0 2px" }}>
         <span style={{ color: "#B0A090", fontSize: "7px" }}>SPASI = KONFIRMASI KATA</span>
         <span style={{ color: "#B0A090", fontSize: "7px" }}>
           {gamePhase === "playing" && `KATA KE-${currentWordIndex + 1} / ${words.length}`}
@@ -276,7 +369,7 @@ export function TypingArea({
 
 function StatBadge({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+    <div className="typing-stat-badge" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
       <span style={{ color: "#9A8878", fontSize: "7px" }}>{label}</span>
       <span style={{ color, fontSize: "14px" }}>{value}</span>
     </div>
