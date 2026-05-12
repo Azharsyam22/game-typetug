@@ -76,13 +76,30 @@ File hasil build akan ada di folder `dist/`
 3. Salah satu pemain tekan SPASI untuk memulai
 4. Ketik kata yang muncul dan tekan SPASI untuk konfirmasi
 
-## 🛠️ Tech Stack
+## 🛠️ Teknologi & Tools
 
-- **Frontend**: React 18, TypeScript, Vite
-- **Backend**: Node.js, Socket.IO
-- **Styling**: Tailwind CSS, Custom CSS
-- **UI Components**: Radix UI
-- **Routing**: React Router v7
+Aplikasi ini dibangun menggunakan teknologi web modern untuk memastikan performa yang cepat dan interaksi real-time yang mulus:
+
+### Frontend
+- **Framework**: React 18 & TypeScript
+- **Build Tool**: Vite (Super cepat untuk development & bundling)
+- **Routing**: React Router v7 (Navigasi antarmuka SPA)
+- **Styling**: Tailwind CSS v4 & Vanilla CSS (Dioptimalkan untuk efek retro pixel-art)
+- **Animasi & Efek**: Framer Motion & Canvas Confetti
+
+### Backend & Real-time
+- **Runtime**: Node.js (Custom HTTP Server)
+- **Multiplayer Engine**: Socket.IO v4 (Komunikasi real-time dua arah yang sangat cepat)
+- **Database**: SQLite3 via `better-sqlite3` (Database lokal super ringan tanpa setup tambahan)
+- **Autentikasi & Keamanan**: 
+  - `bcryptjs` untuk enkripsi password
+  - `jsonwebtoken` untuk sistem sesi pengguna (JWT)
+  - Integrasi Google OAuth untuk Login Instan
+
+### Tools Pendukung
+- **UI Icons**: Lucide React
+- **Manajemen State/Koneksi**: Reusable React Contexts & Hooks
+- **Version Control**: Git & GitHub
 
 ## 📁 Struktur Project
 
