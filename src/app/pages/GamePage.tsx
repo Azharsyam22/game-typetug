@@ -1362,7 +1362,7 @@ export default function GamePage() {
       )}
 
       {/* ── WIN NOTIFICATION POPUP ────────────────────────────────────────── */}
-      {fase === "selesai" && !showScorePopup && (
+      {lawanKeluar && fase === "selesai" && !showScorePopup && (
         <div
           style={{
             position: "fixed",
@@ -1399,7 +1399,11 @@ export default function GamePage() {
                 ⚠️ LAWAN KELUAR DARI PERMAINAN!
               </div>
             )}
-            {posiTali === 50 ? (
+            {lawanKeluar ? (
+              <div style={{ fontSize: "20px", color: "#C84040", textShadow: "2px 2px 0 rgba(0,0,0,0.2)", textAlign: "center" }}>
+                LAWAN KELUAR
+              </div>
+            ) : posiTali === 50 ? (
               <div style={{ fontSize: "20px", color: "#A89878", textShadow: "2px 2px 0 rgba(0,0,0,0.2)" }}>
                 PERTANDINGAN SERI!
               </div>
@@ -1410,7 +1414,7 @@ export default function GamePage() {
             )}
 
             {/* Scoreboard stats */}
-            {posiTali === 50 ? (
+            {!lawanKeluar && (posiTali === 50 ? (
                <div style={{ display: "flex", gap: "16px", width: "100%" }}>
                  {/* Tim Merah */}
                  <div style={{ flex: 1, background: "#E8DFCC", padding: "12px", border: "2px solid #C84040", borderRadius: "8px", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -1458,7 +1462,7 @@ export default function GamePage() {
                    <div>{posiTali > 50 ? kesalahan : (isMultiplayer ? salahBot : kesalahan + Math.floor(Math.random() * 3))}</div>
                 </div>
               </div>
-            )}
+            ))}
             
             <div style={{ display: "flex", width: "100%", justifyContent: lawanKeluar ? "center" : "space-between", marginTop: "8px" }}>
               {!lawanKeluar && (
