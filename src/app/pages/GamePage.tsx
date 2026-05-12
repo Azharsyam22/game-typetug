@@ -675,8 +675,8 @@ export default function GamePage() {
             padding: 6px 8px !important;
           }
           .game-scene-wrap {
-            min-height: 150px !important;
-            height: 34svh !important;
+            min-height: 220px !important;
+            height: 40svh !important;
             flex: none !important;
           }
         }

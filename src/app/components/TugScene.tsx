@@ -35,9 +35,8 @@ export function TugScene({ ropePosition, gamePhase, countdown, isMultiplayer }: 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Sementara ini, abaikan mode bot dan selalu pakai gambar standar (multiplayer)
     const activeBgImg = bgImgMulti;
-    const activeFighterImg = fighterImgMulti;
+    const activeFighterImg = isMultiplayer ? fighterImgMulti : fighterImgBot;
 
     const W = canvas.width;
     const H = canvas.height;
@@ -50,8 +49,29 @@ export function TugScene({ ropePosition, gamePhase, countdown, isMultiplayer }: 
       ctx.imageSmoothingEnabled = false; 
 
       // ── BACKGROUND ──────────────────────────────────────────────────────
+      const isMobileViewport = typeof window !== "undefined" && window.innerWidth <= 760;
+
       if (activeBgImg.complete && activeBgImg.naturalWidth > 0) {
-        ctx.drawImage(activeBgImg, 0, 0, W, H);
+        if (isMobileViewport) {
+          const bgRatio = activeBgImg.naturalWidth / activeBgImg.naturalHeight;
+          const canvasRatio = W / H;
+          let sourceWidth = activeBgImg.naturalWidth;
+          let sourceHeight = activeBgImg.naturalHeight;
+          let sourceX = 0;
+          let sourceY = 0;
+
+          if (bgRatio > canvasRatio) {
+            sourceWidth = sourceHeight * canvasRatio;
+            sourceX = (activeBgImg.naturalWidth - sourceWidth) / 2;
+          } else {
+            sourceHeight = sourceWidth / canvasRatio;
+            sourceY = Math.max(0, activeBgImg.naturalHeight - sourceHeight);
+          }
+
+          ctx.drawImage(activeBgImg, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, W, H);
+        } else {
+          ctx.drawImage(activeBgImg, 0, 0, W, H);
+        }
       } else {
         // Warna fallback jika gambar belum termuat
         ctx.fillStyle = "#F4EDE0";
@@ -64,7 +84,7 @@ export function TugScene({ ropePosition, gamePhase, countdown, isMultiplayer }: 
       
       // Jika ropePosition > 50 (merah menang), gambar bergeser ke kiri (negatif)
       // Jika ropePosition < 50 (biru menang), gambar bergeser ke kanan (positif)
-      const maxShift = 420; 
+      const maxShift = isMobileViewport ? 260 : 420; 
       const targetShiftX = lean * -maxShift;
 
       // Membuat gerakan terseret perlahan (Smooth Lerp)
@@ -88,22 +108,44 @@ export function TugScene({ ropePosition, gamePhase, countdown, isMultiplayer }: 
         ctx.fillRect(dx2, dy, dw, 5);
       }
 
-      // Render foto/sprite utama (keduanya bersatu dalam 1 foto)
+      // Mobile memakai crop supaya area kosong transparan di atas tidak mengecilkan karakter.
+      // Desktop dipertahankan seperti framing awal.
       if (activeFighterImg.complete && activeFighterImg.naturalWidth > 0) {
-        const desiredWidth = 640; // Gambar dirender besar & jelas di tengah
-        const ratio = activeFighterImg.naturalWidth / activeFighterImg.naturalHeight;
-        const desiredHeight = desiredWidth / ratio;
-        
-        const cx = W / 2 + shiftX + centerOffsetX;
-        const cy = groundY; 
-        
-        ctx.drawImage(
-          activeFighterImg,
-          cx - desiredWidth / 2,
-          cy - desiredHeight + 15, // offset disesuaikan agar kaki tepat di jalan tanah (tanda silang merah)
-          desiredWidth,
-          desiredHeight
-        );
+        if (isMobileViewport) {
+          const cropY = 330;
+          const cropHeight = activeFighterImg.naturalHeight - cropY;
+          const desiredWidth = 900;
+          const ratio = activeFighterImg.naturalWidth / cropHeight;
+          const desiredHeight = desiredWidth / ratio;
+          const cx = W / 2 + shiftX + centerOffsetX;
+          const cy = H - 4; 
+
+          ctx.drawImage(
+            activeFighterImg,
+            0,
+            cropY,
+            activeFighterImg.naturalWidth,
+            cropHeight,
+            cx - desiredWidth / 2,
+            cy - desiredHeight,
+            desiredWidth,
+            desiredHeight
+          );
+        } else {
+          const desiredWidth = 640;
+          const ratio = activeFighterImg.naturalWidth / activeFighterImg.naturalHeight;
+          const desiredHeight = desiredWidth / ratio;
+          const cx = W / 2 + shiftX + centerOffsetX;
+          const cy = groundY; 
+
+          ctx.drawImage(
+            activeFighterImg,
+            cx - desiredWidth / 2,
+            cy - desiredHeight + 15,
+            desiredWidth,
+            desiredHeight
+          );
+        }
       }
 
       // ── CANVAS OVERLAYS (Minimalis) ──────────────────────────────────────
@@ -121,7 +163,7 @@ export function TugScene({ ropePosition, gamePhase, countdown, isMultiplayer }: 
 
     animRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animRef.current);
-  }, [ropePosition, gamePhase, countdown]);
+  }, [ropePosition, gamePhase, countdown, isMultiplayer]);
 
   return (
     <canvas

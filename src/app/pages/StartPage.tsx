@@ -32,8 +32,10 @@ export default function StartPage() {
 
   return (
     <div
+      className="start-page"
       onClick={() => navigate("/lobby")}
       style={{
+        minHeight: "100svh",
         height: "100vh",
         backgroundImage: `url("${bgStartImage}")`,
         backgroundSize: "cover",
@@ -51,6 +53,7 @@ export default function StartPage() {
       }}
     >
       <div
+        className="start-user-card"
         style={{
           position: "absolute",
           top: "18px",
@@ -211,11 +214,69 @@ export default function StartPage() {
             box-shadow: 3px 3px 0 #C8B890, 0 0 15px rgba(192, 128, 48, 0.3);
           }
         }
+        @media (max-width: 760px) {
+          .start-page {
+            background-size: cover !important;
+            background-position: center bottom !important;
+            justify-content: center !important;
+            padding: 86px 14px 32px !important;
+          }
+          .start-user-card {
+            top: 14px !important;
+            right: 12px !important;
+            max-width: calc(100vw - 24px) !important;
+            gap: 8px !important;
+            padding: 7px 8px !important;
+            transform-origin: top right !important;
+          }
+          .start-user-card img,
+          .start-user-card > div {
+            width: 24px !important;
+            height: 24px !important;
+          }
+          .start-user-card span {
+            max-width: 92px !important;
+            font-size: 7px !important;
+          }
+          .start-user-card button {
+            padding: 8px 8px !important;
+            font-size: 6px !important;
+          }
+          .start-title-block {
+            width: 100% !important;
+            margin: 0 0 54px !important;
+            padding: 0 6px !important;
+            animation: floatMobile 4s ease-in-out infinite !important;
+          }
+          .start-title {
+            font-size: clamp(34px, 13vw, 48px) !important;
+            letter-spacing: 1px !important;
+            line-height: 1.05 !important;
+            text-shadow: 4px 4px 0 #C8B888, 2px 2px 0 #D8CEB8 !important;
+            white-space: nowrap !important;
+          }
+          .start-subtitle {
+            font-size: clamp(8px, 3.2vw, 12px) !important;
+            letter-spacing: 2px !important;
+            line-height: 1.6 !important;
+            margin-top: 10px !important;
+            padding: 0 20px !important;
+          }
+          .start-press-text {
+            font-size: clamp(8px, 3.2vw, 12px) !important;
+            letter-spacing: 1px !important;
+          }
+        }
+        @keyframes floatMobile {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
       `}</style>
       
       {/* ── TITLE BLOCK ─────────────────────────────────────────────────── */}
-      <div style={{ textAlign: "center", marginBottom: "80px", animation: "float 4s ease-in-out infinite" }}>
+      <div className="start-title-block" style={{ textAlign: "center", marginBottom: "80px", animation: "float 4s ease-in-out infinite" }}>
         <div
+          className="start-title"
           style={{
             fontSize: "clamp(54px, 10vw, 84px)",
             color: "#2A1A18",
@@ -227,6 +288,7 @@ export default function StartPage() {
           TYPE<span style={{ color: "#C08030" }}>TUG</span>
         </div>
         <div
+          className="start-subtitle"
           style={{
             fontSize: "clamp(12px, 2.5vw, 16px)",
             color: "#C08030",
@@ -242,6 +304,7 @@ export default function StartPage() {
 
       {/* ── BLINKING START TEXT ─────────────────────────────────────────── */}
       <div
+        className="start-press-text"
         style={{
           color: "#7A6858",
           fontSize: "clamp(12px, 3vw, 16px)",
