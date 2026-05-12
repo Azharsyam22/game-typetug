@@ -147,10 +147,17 @@ export default function GamePage() {
   const [pemenang, setPemenang] = useState<"merah" | "biru" | null>(null);
   
   const [lawanKeluar, setLawanKeluar] = useState(false);
+  const [isRoomReady, setIsRoomReady] = useState(!isMultiplayer);
+  const [startError, setStartError] = useState("");
 
   const waktuMulai = useRef(0);
   const timerKetik = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerRiwayat = useRef<ReturnType<typeof setInterval> | null>(null);
+  const faseRef = useRef(fase);
+
+  useEffect(() => {
+    faseRef.current = fase;
+  }, [fase]);
 
   // ── WebSocket Multiplayer Integration ───────────────────────────────────────
   useEffect(() => {
@@ -166,11 +173,15 @@ export default function GamePage() {
         // Cari nama musuh dari object players
         const op = Object.values(players).find((p: any) => p.name !== namaPlayer);
         if (op) setNamaMusuh((op as any).name);
+        setIsRoomReady(Object.keys(players).length >= 2);
+        setStartError("");
+        setLawanKeluar(false);
         
         // Tidak auto-start, tunggu salah satu pemain pencet SPASI
       });
 
       socket.on("gameStarted", ({ startTime, sharedWords }) => {
+        if (faseRef.current === "hitung" || faseRef.current === "bermain") return;
         // Semua pemain mulai bersamaan ketika ada yang trigger
         // Gunakan kata yang sama dari server
         if (sharedWords && sharedWords.length > 0) {
@@ -206,13 +217,29 @@ export default function GamePage() {
         if (data.salah !== undefined) setSalahBot(data.salah);
       });
 
-      socket.on("opponentLeft", () => {
-        setLawanKeluar(true);
-        setFase("selesai");
+      socket.on("opponentLeft", ({ wasPlaying } = { wasPlaying: false }) => {
+        if (wasPlaying || faseRef.current === "hitung" || faseRef.current === "bermain") {
+          setLawanKeluar(true);
+          setShowCountdownPopup(false);
+          setShowFightPopup(false);
+          setShowScorePopup(false);
+          setFase("selesai");
+          return;
+        }
+
+        setNamaMusuh("MENUNGGU...");
+        setIsRoomReady(false);
+        setLawanKeluar(false);
+        setShowScorePopup(false);
+        setFase("menunggu");
       });
 
       socket.on("opponentEndedGame", () => {
         akhiriPermainanDariSocketRef.current();
+      });
+
+      socket.on("startError", (message) => {
+        setStartError(message || "Tunggu lawan masuk dulu.");
       });
 
       socket.on("joinError", (err) => {
@@ -230,6 +257,7 @@ export default function GamePage() {
         socket.off("opponentLeft");
         socket.off("joinError");
         socket.off("opponentEndedGame");
+        socket.off("startError");
         socket.disconnect();
       };
     }
@@ -293,23 +321,34 @@ export default function GamePage() {
   const mulaiPermainanRef = useRef<() => void>(() => {});
   const akhiriPermainanRef = useRef<() => void>(() => {});
   const akhiriPermainanDariSocketRef = useRef<() => void>(() => {});
+  const requestStartGame = useCallback(() => {
+    if (faseRef.current !== "menunggu") return;
+
+    if (isMultiplayer) {
+      if (!isRoomReady) {
+        setStartError("Tunggu lawan masuk dulu.");
+        return;
+      }
+
+      setStartError("");
+      socket.emit("startGame", { roomCode: kodeRoom });
+      return;
+    }
+
+    mulaiPermainanRef.current();
+  }, [isMultiplayer, isRoomReady, kodeRoom]);
+
   useEffect(() => {
-    if (fase !== "menunggu" && fase !== "selesai") return;
+    if (fase !== "menunggu") return;
     const handler = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
-        if (isMultiplayer) {
-          // Multiplayer: siapa saja yang pencet SPASI, broadcast ke semua
-          socket.emit("startGame", { roomCode: kodeRoom });
-        } else {
-          // Bot: langsung mulai
-          mulaiPermainanRef.current();
-        }
+        requestStartGame();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [fase, isMultiplayer, kodeRoom]);
+  }, [fase, requestStartGame]);
 
   // ── Countdown timer ─────────────────────────────────────────────────────────
   useInterval(() => {
@@ -413,7 +452,7 @@ export default function GamePage() {
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (fase === "menunggu" || fase === "selesai") {
-      if (e.code === "Space" || e.key === " " || e.key === "Spacebar" || e.key === "Enter") { e.preventDefault(); mulaiPermainan(); }
+      if (e.code === "Space" || e.key === " " || e.key === "Spacebar" || e.key === "Enter") { e.preventDefault(); requestStartGame(); }
       return;
     }
     if (fase !== "bermain") return;
@@ -421,20 +460,38 @@ export default function GamePage() {
       e.preventDefault();
       submitCurrentWord();
     }
-  }, [fase, submitCurrentWord]);
+  }, [fase, requestStartGame, submitCurrentWord]);
+
+  const tentukanPemenang = useCallback((): "merah" | "biru" | null => {
+    const progressDiff = progresPlayer - progresBot;
+    if (Math.abs(progressDiff) >= 0.5) return progressDiff > 0 ? "merah" : "biru";
+
+    const scoreDiff = kataBetul - benarBot;
+    if (scoreDiff !== 0) return scoreDiff > 0 ? "merah" : "biru";
+
+    const errorDiff = kesalahan - salahBot;
+    if (errorDiff !== 0) return errorDiff < 0 ? "merah" : "biru";
+
+    return null;
+  }, [benarBot, kataBetul, kesalahan, progresBot, progresPlayer, salahBot]);
 
   const akhiriPermainan = () => {
     setFase((prev) => {
-      if (prev === "selesai") return prev;
+      if (prev !== "bermain") return prev;
       setSedangKetik(false);
       if (timerRiwayat.current) clearInterval(timerRiwayat.current);
       
       // Tentukan pemenang
-      const winner = posiTali > 50 ? "merah" : posiTali < 50 ? "biru" : null;
+      const winner = tentukanPemenang();
       setPemenang(winner);
+      if (winner === "merah") setPosiTali((p) => (p <= 50 ? 51 : p));
+      if (winner === "biru") setPosiTali((p) => (p >= 50 ? 49 : p));
       
       // Tampilkan score popup
       setShowScorePopup(true);
+      if (isMultiplayer) {
+        socket.emit("gameEnded", { roomCode: kodeRoom });
+      }
       
       return "selesai";
     });
@@ -442,13 +499,15 @@ export default function GamePage() {
 
   const akhiriPermainanDariSocket = () => {
     setFase((prev) => {
-      if (prev === "selesai") return prev;
+      if (prev !== "bermain") return prev;
       setSedangKetik(false);
       if (timerRiwayat.current) clearInterval(timerRiwayat.current);
       
       // Tentukan pemenang
-      const winner = posiTali > 50 ? "merah" : posiTali < 50 ? "biru" : null;
+      const winner = tentukanPemenang();
       setPemenang(winner);
+      if (winner === "merah") setPosiTali((p) => (p <= 50 ? 51 : p));
+      if (winner === "biru") setPosiTali((p) => (p >= 50 ? 49 : p));
       
       // Tampilkan score popup
       setShowScorePopup(true);
@@ -732,6 +791,11 @@ export default function GamePage() {
           <span style={{ color: "#9A8878", fontSize: "7px", marginLeft: "6px" }}>
             [{kodeRoom}]
           </span>
+          {startError && (
+            <span style={{ color: "#C84040", fontSize: "7px", marginLeft: "6px" }}>
+              {startError}
+            </span>
+          )}
         </div>
 
         {/* Buttons */}
@@ -739,17 +803,12 @@ export default function GamePage() {
           <TombolRetro
             label="▶ MULAI"
             onClick={() => {
-              if (fase === "menunggu" || fase === "selesai") {
-                if (isMultiplayer) {
-                  // Siapa saja yang klik, broadcast ke semua
-                  socket.emit("startGame", { roomCode: kodeRoom });
-                } else {
-                  mulaiPermainan();
-                }
+              if (fase === "menunggu") {
+                requestStartGame();
               }
             }}
             accent="#4A8858"
-            disabled={fase === "hitung" || fase === "bermain"}
+            disabled={fase === "hitung" || fase === "bermain" || (isMultiplayer && !isRoomReady)}
           />
           <TombolRetro label="↺ ULANG" onClick={resetPermainan} accent="#6A5878" />
           <TombolRetro label="◀ LOBI" onClick={() => navigate("/lobby")} accent="#C08030" />
@@ -1190,9 +1249,9 @@ export default function GamePage() {
               }}
             >
               {(() => {
-                const isPlayerWinner = posiTali > 50;
-                const isOpponentWinner = posiTali < 50;
-                const isDraw = posiTali === 50;
+                const isPlayerWinner = pemenang === "merah";
+                const isOpponentWinner = pemenang === "biru";
+                const isDraw = !pemenang;
                 
                 const winnerColor = isPlayerWinner ? "#C84040" : isOpponentWinner ? "#3A70B0" : "#9A8878";
                 const winnerName = isPlayerWinner ? namaPlayer.toUpperCase() : 

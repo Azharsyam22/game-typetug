@@ -302,6 +302,21 @@ io.on("connection", (socket) => {
   });
 
   // 2. Bergabung ke Room
+  socket.on("checkRoom", ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) {
+      socket.emit("roomCheckResult", { ok: false, message: "Ruangan tidak ditemukan!" });
+      return;
+    }
+
+    if (Object.keys(room.players).length >= 2) {
+      socket.emit("roomCheckResult", { ok: false, message: "Ruangan sudah penuh!" });
+      return;
+    }
+
+    socket.emit("roomCheckResult", { ok: true });
+  });
+
   socket.on("joinRoom", ({ roomCode, playerName }) => {
     const room = rooms[roomCode];
     if (room) {
@@ -319,7 +334,7 @@ io.on("connection", (socket) => {
       io.to(roomCode).emit("roomReady", {
         players: room.players
       });
-      room.status = "playing";
+      room.status = "ready";
     } else {
       socket.emit("joinError", "Ruangan tidak ditemukan!");
     }
@@ -329,14 +344,22 @@ io.on("connection", (socket) => {
   socket.on("startGame", ({ roomCode }) => {
     const room = rooms[roomCode];
     if (room) {
+      const playerCount = Object.keys(room.players).length;
+      if (playerCount < 2) {
+        socket.emit("startError", "Tunggu lawan masuk dulu.");
+        return;
+      }
+
+      if (room.gameState === "countdown" || room.gameState === "playing") {
+        return;
+      }
+
       const startTime = Date.now();
       room.startTime = startTime;
-      room.gameState = "playing";
+      room.gameState = "countdown";
       
-      // Generate kata yang sama untuk kedua pemain
-      if (!room.sharedWords) {
-        room.sharedWords = generateSharedWords();
-      }
+      // Generate kata yang sama untuk kedua pemain setiap match baru
+      room.sharedWords = generateSharedWords();
       
       // Broadcast ke semua pemain di room untuk mulai bersamaan dengan kata yang sama
       io.to(roomCode).emit("gameStarted", { 
@@ -476,6 +499,11 @@ io.on("connection", (socket) => {
 
   // 5. Game End Synchronization
   socket.on("gameEnded", ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (room) {
+      room.gameState = "finished";
+      room.status = "ready";
+    }
     socket.to(roomCode).emit("opponentEndedGame");
   });
 
@@ -495,8 +523,12 @@ io.on("connection", (socket) => {
         if (Object.keys(rooms[roomCode].players).length === 0) {
           delete rooms[roomCode];
         } else {
+          const wasPlaying = rooms[roomCode].gameState === "countdown" || rooms[roomCode].gameState === "playing";
+          rooms[roomCode].status = "waiting";
+          rooms[roomCode].gameState = "waiting";
+          rooms[roomCode].sharedWords = null;
           // Beritahu lawan bahwa musuh keluar
-          io.to(roomCode).emit("opponentLeft");
+          io.to(roomCode).emit("opponentLeft", { wasPlaying });
         }
       }
     }

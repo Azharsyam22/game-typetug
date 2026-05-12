@@ -75,12 +75,16 @@ export default function LobbyPage() {
         setShowRoomNotFoundPopup(true);
       }, 3000);
       
-      // Listen untuk room ready (room exists)
-      const handleRoomReady = () => {
+      const handleRoomCheckResult = (result: { ok: boolean; message?: string }) => {
         clearTimeout(validationTimeout);
-        socket.off("roomReady", handleRoomReady);
-        socket.off("joinError", handleJoinError);
+        socket.off("roomCheckResult", handleRoomCheckResult);
         socket.disconnect();
+
+        if (!result.ok) {
+          setRoomNotFoundCode(roomCode);
+          setShowRoomNotFoundPopup(true);
+          return;
+        }
         
         // Room valid, navigate ke game
         navigate("/permainan", {
@@ -93,24 +97,10 @@ export default function LobbyPage() {
           },
         });
       };
+
+      socket.on("roomCheckResult", handleRoomCheckResult);
       
-      // Listen untuk join error (room not found)
-      const handleJoinError = (err: string) => {
-        clearTimeout(validationTimeout);
-        socket.off("roomReady", handleRoomReady);
-        socket.off("joinError", handleJoinError);
-        socket.disconnect();
-        
-        // Show error popup
-        setRoomNotFoundCode(roomCode);
-        setShowRoomNotFoundPopup(true);
-      };
-      
-      socket.on("roomReady", handleRoomReady);
-      socket.on("joinError", handleJoinError);
-      
-      // Try to join room
-      socket.emit("joinRoom", { roomCode, playerName: nama.trim() });
+      socket.emit("checkRoom", { roomCode });
     });
   };
 
