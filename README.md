@@ -37,7 +37,7 @@ cp .env.example .env
 ```
 
 4. **(Opsional)** Setup Google OAuth:
-   - Lihat panduan lengkap di [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md)
+   - Lihat panduan lengkap di [GOOGLE_OAUTH_SETUP.md](./docs/GOOGLE_OAUTH_SETUP.md)
    - Dapatkan Client ID dari [Google Cloud Console](https://console.cloud.google.com/)
    - Tambahkan ke `.env`: `VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com`
 
@@ -86,7 +86,7 @@ File hasil build akan ada di folder `dist/`
 
 ## 📁 Struktur Project
 
-```
+```text
 typetug/
 ├── src/
 │   ├── app/
@@ -97,7 +97,9 @@ typetug/
 │   ├── styles/             # CSS files
 │   ├── socket.ts           # Socket.IO client config
 │   └── main.tsx            # Entry point
-├── server.js               # WebSocket server
+├── server/                 # Logika API & Socket Backend
+├── docs/                   # File dokumentasi pendukung
+├── server.js               # Entry point backend server
 ├── package.json
 └── vite.config.ts
 ```
@@ -124,7 +126,7 @@ typetug/
 
 ## 🔧 Troubleshooting
 
-Mengalami masalah? Lihat [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) untuk solusi masalah umum.
+Mengalami masalah? Lihat [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) untuk solusi masalah umum.
 
 ## 📝 License
 
@@ -132,7 +134,7 @@ MIT License
 
 ## 👨‍💻 Developer
 
-Dikembangkan oleh [Azhar Syam](https://github.com/Azharsyam22)
+Dikembangkan oleh **Kelompok 2 PEMWEB**
 
 ## 🤝 Contributing
 
